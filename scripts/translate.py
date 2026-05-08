@@ -36,15 +36,19 @@ def split_chapters(content):
     """
     Tối ưu hóa để nhận diện tiêu đề chương như: 第一章 我是喬峰？
     """
+
+    print(f"chuẩn bị chia chương")
     # Regex này sẽ bắt: 第 + (số Hán/Số thường) + 章/回 + (Tên chương)
     # Nó cũng xử lý các dòng có chứa dấu hỏi, dấu chấm, khoảng trắng
     pattern = r'(^\s*第[\d一二三四五六七八九十百千万零]+[章回节卷].*)'
     
     # Dùng re.MULTILINE để đảm bảo ^ và $ hoạt động theo từng dòng nếu cần
     parts = re.split(pattern, content)
+
+    print(f"total chương {len(parts)}")
     
     chapters = []
-    
+
     # Phần parts[0] luôn là nội dung TRƯỚC chương 1 (Giới thiệu, lời tựa)
     if parts[0].strip():
         chapters.append({
@@ -63,6 +67,7 @@ def split_chapters(content):
             "title": title, 
             "content": body
         })
+        
     
     return chapters
 
