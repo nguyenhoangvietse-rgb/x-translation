@@ -81,7 +81,7 @@ def translate_deepseek(text):
             {"role": "user", "content": f"Dịch đoạn truyện sau:\n\n{text}"}
         ],
         "temperature": 0.3,
-        "max_tokens": 4096,
+        "max_tokens": 32768,
         "stream": False
     }
     
