@@ -38,7 +38,7 @@ def split_chapters(content):
     """
     # Regex này sẽ bắt: 第 + (số Hán/Số thường) + 章/回 + (Tên chương)
     # Nó cũng xử lý các dòng có chứa dấu hỏi, dấu chấm, khoảng trắng
-    pattern = r'^\s*(第[\d一二三四五六七八九十百千万零]+[章回节卷].*)'
+    pattern = r'(^\s*第[\d一二三四五六七八九十百千万零]+[章回节卷].*)'
     
     # Dùng re.MULTILINE để đảm bảo ^ và $ hoạt động theo từng dòng nếu cần
     parts = re.split(pattern, content)
