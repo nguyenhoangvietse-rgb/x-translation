@@ -2,9 +2,11 @@ import os
 import re
 import time
 import json
+import hashlib
 import boto3
 import requests
 from botocore.client import Config
+from openai import OpenAI
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
@@ -21,16 +23,34 @@ s3 = boto3.client(
     region_name='auto'
 )
 
-def get_raw_file():
-    """Lấy nội dung file txt gốc từ thư mục raw/"""
+deepseek = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+
+SYSTEM_INSTRUCTION = (
+    "Bạn là một dịch giả chuyên nghiệp, am hiểu sâu sắc về thể loại truyện Tiên Hiệp, Huyền Huyễn và văn hóa cổ phong Trung Hoa. "
+    "Nhiệm vụ của bạn là dịch văn bản từ tiếng Trung sang tiếng Việt.\n\n"
+    "MỤC TIÊU:\n"
+    "1. Văn phong: Trang trọng, cổ kính, trôi chảy, giàu hình ảnh. Không dùng từ hiện đại, không để bị lỗi 'convert' (Hán Việt thô).\n"
+    "2. Xưng hô: Linh hoạt theo vai vế (Bổn tọa, tại hạ, lão phu, tiểu tử, vãn bối, các hạ, sư phụ, đồ nhi...).\n"
+    "3. Thuật ngữ: Bắt buộc dùng Hán - Việt chuẩn tu tiên (Luyện Khí, Trúc Cơ, Kim Đan, Tông môn, Động phủ, Đạo tâm, Pháp bảo...).\n"
+    "4. Tên riêng: Giữ nguyên âm Hán - Việt cho tên người, chiêu thức, địa danh (Ví dụ: Lâm Phong, Thanh Vân Môn).\n\n"
+    "QUY TẮC BẮT BUỘC:\n"
+    "- KHÔNG lược bỏ chi tiết.\n"
+    "- KHÔNG thêm lời bình luận của AI.\n"
+    "- Chuyển ngữ từ lóng hiện đại (nếu có) sang văn phong cổ đại phù hợp.\n"
+    "- Đảm bảo nhất quán tên gọi toàn văn bản.\n"
+    "- CHỈ trả về bản dịch hoàn chỉnh."
+)
+
+def get_all_raw_files():
+    """Lấy danh sách tất cả file txt gốc từ thư mục raw/"""
+    files = []
     response = s3.list_objects_v2(Bucket=R2_BUCKET_NAME, Prefix='raw/')
     for obj in response.get('Contents', []):
         if obj['Key'].endswith('.txt'):
-            file_content = s3.get_object(Bucket=R2_BUCKET_NAME, Key=obj['Key'])['Body'].read().decode('utf-8')
-            return obj['Key'], file_content
-    return None, None
+            content = s3.get_object(Bucket=R2_BUCKET_NAME, Key=obj['Key'])['Body'].read().decode('utf-8')
+            files.append((obj['Key'], content))
+    return files
 
-import re
 
 def split_chapters(content):
     """
@@ -72,101 +92,145 @@ def split_chapters(content):
 
 def translate_deepseek(text):
     """Gọi DeepSeek API với prompt chuyên dụng cho Tiên Hiệp"""
-    if not text.strip(): return ""
-    
-    url = "https://api.deepseek.com/v1/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
-    }
+    if not text.strip():
+        return ""
 
-    # Nội dung System Prompt dựa trên yêu cầu của bạn
-    system_instruction = (
-        "Bạn là một dịch giả chuyên nghiệp, am hiểu sâu sắc về thể loại truyện Tiên Hiệp, Huyền Huyễn và văn hóa cổ phong Trung Hoa. "
-        "Nhiệm vụ của bạn là dịch văn bản từ tiếng Trung sang tiếng Việt.\n\n"
-        "MỤC TIÊU:\n"
-        "1. Văn phong: Trang trọng, cổ kính, trôi chảy, giàu hình ảnh. Không dùng từ hiện đại, không để bị lỗi 'convert' (Hán Việt thô).\n"
-        "2. Xưng hô: Linh hoạt theo vai vế (Bổn tọa, tại hạ, lão phu, tiểu tử, vãn bối, các hạ, sư phụ, đồ nhi...).\n"
-        "3. Thuật ngữ: Bắt buộc dùng Hán - Việt chuẩn tu tiên (Luyện Khí, Trúc Cơ, Kim Đan, Tông môn, Động phủ, Đạo tâm, Pháp bảo...).\n"
-        "4. Tên riêng: Giữ nguyên âm Hán - Việt cho tên người, chiêu thức, địa danh (Ví dụ: Lâm Phong, Thanh Vân Môn).\n\n"
-        "QUY TẮC BẮT BUỘC:\n"
-        "- KHÔNG lược bỏ chi tiết.\n"
-        "- KHÔNG thêm lời bình luận của AI.\n"
-        "- Chuyển ngữ từ lóng hiện đại (nếu có) sang văn phong cổ đại phù hợp.\n"
-        "- Đảm bảo nhất quán tên gọi toàn văn bản.\n"
-        "- CHỈ trả về bản dịch hoàn chỉnh."
-    )
-
-    payload = {
-        "model": "deepseek-v4-flash",
-        "messages": [
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": f"Dịch đoạn truyện sau:\n\n{text}"}
-        ],
-        "temperature": 0.3,
-        "max_tokens": 32768,
-        "stream": False
-    }
-    
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=360)
-        response.raise_for_status()
-        return response.json()['choices'][0]['message']['content'].strip()
+        response = deepseek.chat.completions.create(
+            model="deepseek-v4-flash",
+            messages=[
+                {"role": "system", "content": SYSTEM_INSTRUCTION},
+                {"role": "user", "content": f"Dịch đoạn truyện sau:\n\n{text}"}
+            ],
+            temperature=0.3,
+            max_tokens=32768,
+        )
+        return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"Lỗi API tại chương: {e}")
         return None
 
-def main():
-    file_key, content = get_raw_file()
-    if not file_key:
-        print("Không tìm thấy file gốc trên R2.")
+def trigger_next_run():
+    """Tự động lên lịch chạy lại workflow để tiếp tục xử lý."""
+    token = os.getenv("GITHUB_TOKEN")
+    repo = os.getenv("GITHUB_REPOSITORY")
+    if not token or not repo:
+        print("Thiếu GITHUB_TOKEN/GITHUB_REPOSITORY, không thể tự lên lịch.")
         return
 
-    full_story_name = file_key.replace('raw/', '').replace('.txt', '')
-    chapters = split_chapters(content)
-    print(f"Tổng số chương tìm thấy: {len(chapters)}")
+    url = f"https://api.github.com/repos/{repo}/actions/workflows/translate.yml/dispatches"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    resp = requests.post(url, json={"ref": "main"}, headers=headers)
+    if resp.status_code == 204:
+        print("Đã lên lịch chạy lại workflow để tiếp tục.")
+    else:
+        print(f"Không thể lên lịch: {resp.status_code} {resp.text}")
 
-    translated_count = 0
-    metadata = {"story_name": full_story_name, "chapters": []}
+def process_book(file_key, content, start_time):
+    """Xử lý một cuốn sách: chia chương, dịch, lưu trữ.
+    Trả về True nếu hoàn tất, False nếu hết thời gian cần reschedule."""
+    story_name = file_key.replace('raw/', '').replace('.txt', '')
+
+    raw_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
+
+    existing_metadata = {}
+    existing_chapters = {}
+    try:
+        meta_obj = s3.get_object(Bucket=R2_BUCKET_NAME, Key=f"translated/{story_name}/metadata.json")
+        existing_metadata = json.loads(meta_obj['Body'].read().decode('utf-8'))
+        existing_chapters = {ch["id"]: ch for ch in existing_metadata.get("chapters", [])}
+        if existing_metadata.get("raw_hash") == raw_hash:
+            print(f"Bỏ qua [{story_name}] — không có thay đổi.")
+            return True
+        print(f"[{story_name}] Có thay đổi, đã có {len(existing_chapters)} chương cũ.")
+    except:
+        pass
+
+    chapters = split_chapters(content)
+    print(f"[{story_name}] Tổng số chương: {len(chapters)}")
+    metadata = {"story_name": story_name, "chapters": [], "raw_hash": raw_hash}
+
+    timeout_seconds = 5 * 3600
+    new_count = 0
+    updated_count = 0
 
     for i, chap in enumerate(chapters):
-        # Giới hạn 50 chương mỗi lần chạy
-        if translated_count >= 50:
-            print("Đã đạt giới hạn 50 chương cho lượt này. Dừng.")
-            break
-
-        output_key = f"translated/{full_story_name}/chapter_{i}.txt"
-        
-        try:
-            s3.head_object(Bucket=R2_BUCKET_NAME, Key=output_key)
-            metadata["chapters"].append({"id": i, "title": chap['title'], "path": output_key})
-            continue 
-        except:
-            # Chưa tồn tại -> Tiến hành dịch
-            print(f"Đang dịch chương {i}: {chap['title']}")
-            
-            combined_text = f"{chap['title']}\n\n{chap['content']}"
-            translated_text = translate_deepseek(combined_text)
-            
-            if translated_text:
+        if time.time() - start_time > timeout_seconds:
+            print(f"Hết thời gian — dừng tại chương {i}/{len(chapters)} của [{story_name}].")
+            if metadata["chapters"]:
                 s3.put_object(
-                    Bucket=R2_BUCKET_NAME, 
-                    Key=output_key, 
-                    Body=translated_text.encode('utf-8')
+                    Bucket=R2_BUCKET_NAME,
+                    Key=f"translated/{story_name}/metadata.json",
+                    Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
                 )
-                metadata["chapters"].append({"id": i, "title": chap['title'], "path": output_key})
-                translated_count += 1
-                time.sleep(1.5)
-            else:
-                print(f"Bỏ qua chương {i} do lỗi API.")
+            return False
 
-    # Cập nhật file metadata.json lên R2 để Front-end sử dụng
+        combined_text = f"{chap['title']}\n\n{chap['content']}"
+        chapter_hash = hashlib.sha256(combined_text.encode('utf-8')).hexdigest()
+
+        if i in existing_chapters and existing_chapters[i].get("hash") == chapter_hash:
+            metadata["chapters"].append(existing_chapters[i])
+            continue
+
+        output_key = f"translated/{story_name}/chapter_{i}.txt"
+
+        if i in existing_chapters:
+            print(f"Đang dịch lại [{story_name}] chương {i}: {chap['title']}")
+            updated_count += 1
+        else:
+            print(f"Đang dịch [{story_name}] chương {i}: {chap['title']}")
+            new_count += 1
+
+        translated_text = translate_deepseek(combined_text)
+
+        if translated_text:
+            s3.put_object(
+                Bucket=R2_BUCKET_NAME,
+                Key=output_key,
+                Body=translated_text.encode('utf-8')
+            )
+            metadata["chapters"].append({
+                "id": i,
+                "title": chap['title'],
+                "path": output_key,
+                "hash": chapter_hash
+            })
+            time.sleep(1.5)
+        else:
+            print(f"Lỗi API — bỏ qua chương {i} của [{story_name}].")
+            if i in existing_chapters:
+                metadata["chapters"].append(existing_chapters[i])
+
     s3.put_object(
         Bucket=R2_BUCKET_NAME,
-        Key=f"translated/{full_story_name}/metadata.json",
+        Key=f"translated/{story_name}/metadata.json",
         Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
     )
-    print("Hoàn tất cập nhật Metadata.")
+    print(f"Hoàn tất [{story_name}] — {len(metadata['chapters'])} chương ({new_count} mới, {updated_count} cập nhật).")
+    return True
+
+
+def main():
+    start_time = time.time()
+    raw_files = get_all_raw_files()
+    if not raw_files:
+        print("Không tìm thấy file gốc nào trên R2.")
+        return
+
+    print(f"Tìm thấy {len(raw_files)} file gốc trong raw/.")
+    need_reschedule = False
+
+    for file_key, content in raw_files:
+        completed = process_book(file_key, content, start_time)
+        if not completed:
+            need_reschedule = True
+            break
+
+    if need_reschedule:
+        trigger_next_run()
 
 if __name__ == "__main__":
     main()
