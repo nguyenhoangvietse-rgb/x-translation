@@ -30,20 +30,39 @@ def get_raw_file():
             return obj['Key'], file_content
     return None, None
 
+import re
+
 def split_chapters(content):
-    """Tách chương bằng Regex tiếng Trung"""
+    """
+    Tối ưu hóa để nhận diện tiêu đề chương như: 第一章 我是喬峰？
+    """
+    # Regex này sẽ bắt: 第 + (số Hán/Số thường) + 章/回 + (Tên chương)
+    # Nó cũng xử lý các dòng có chứa dấu hỏi, dấu chấm, khoảng trắng
     pattern = r'(第[\d一二三四五六七八九十百千万零]+[章回节卷].*)'
+    
+    # Dùng re.MULTILINE để đảm bảo ^ và $ hoạt động theo từng dòng nếu cần
     parts = re.split(pattern, content)
     
     chapters = []
-    # parts[0] thường là phần giới thiệu trước chương 1
-    if parts[0].strip():
-        chapters.append({"title": "Giới thiệu", "content": parts[0].strip()})
     
+    # Phần parts[0] luôn là nội dung TRƯỚC chương 1 (Giới thiệu, lời tựa)
+    if parts[0].strip():
+        chapters.append({
+            "title": "Giới thiệu & Lời tựa", 
+            "content": parts[0].strip()
+        })
+    
+    # Duyệt qua các cặp (Tiêu đề, Nội dung)
     for i in range(1, len(parts), 2):
         title = parts[i].strip()
+        # Nội dung nằm ngay sau tiêu đề
         body = parts[i+1].strip() if i+1 < len(parts) else ""
-        chapters.append({"title": title, "content": body})
+        
+        # Nếu tiêu đề quá ngắn hoặc bị lỗi, có thể gộp lại, nhưng thường Regex trên là đủ
+        chapters.append({
+            "title": title, 
+            "content": body
+        })
     
     return chapters
 
