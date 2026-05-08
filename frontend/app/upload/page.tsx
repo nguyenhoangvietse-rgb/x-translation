@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Upload, FileText, X } from "lucide-react"
+import { uploadService } from "@/services/upload.service"
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -64,36 +65,22 @@ export default function UploadPage() {
     setUploadStatus({ type: null, message: '' })
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      await uploadService.uploadFile(file)
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
+      setUploadStatus({
+        type: 'success',
+        message: `File "${file.name}" uploaded successfully! Translation workflow triggered.`,
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setUploadStatus({
-          type: 'success',
-          message: `File "${file.name}" uploaded successfully!`,
-        })
-        // Optional: Clear file after successful upload
-        setTimeout(() => {
-          setFile(null)
-          setUploadStatus({ type: null, message: '' })
-        }, 3000)
-      } else {
-        setUploadStatus({
-          type: 'error',
-          message: data.error || 'Failed to upload file',
-        })
-      }
+      
+      // Clear file after successful upload
+      setTimeout(() => {
+        setFile(null)
+        setUploadStatus({ type: null, message: '' })
+      }, 3000)
     } catch (error) {
       setUploadStatus({
         type: 'error',
-        message: 'An error occurred while uploading the file',
+        message: error instanceof Error ? error.message : 'An error occurred while uploading the file',
       })
     } finally {
       setIsUploading(false)
