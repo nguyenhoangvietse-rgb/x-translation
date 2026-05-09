@@ -1,7 +1,9 @@
 import os
 import re
+import sys
 import time
 import json
+import argparse
 import hashlib
 import boto3
 import requests
@@ -41,15 +43,14 @@ SYSTEM_INSTRUCTION = (
     "- CHỈ trả về bản dịch hoàn chỉnh."
 )
 
-def get_all_raw_files():
-    """Lấy danh sách tất cả file txt gốc từ thư mục raw/"""
-    files = []
-    response = s3.list_objects_v2(Bucket=R2_BUCKET_NAME, Prefix='raw/')
-    for obj in response.get('Contents', []):
-        if obj['Key'].endswith('.txt'):
-            content = s3.get_object(Bucket=R2_BUCKET_NAME, Key=obj['Key'])['Body'].read().decode('utf-8')
-            files.append((obj['Key'], content))
-    return files
+def decode_content(raw_bytes):
+    """Thử decode nội dung với nhiều encoding (tiếng Trung thường dùng GBK)"""
+    for encoding in ['utf-8-sig', 'utf-8', 'gbk', 'gb18030', 'gb2312']:
+        try:
+            return raw_bytes.decode(encoding)
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    return raw_bytes.decode('utf-8', errors='replace')
 
 
 def split_chapters(content):
@@ -91,27 +92,34 @@ def split_chapters(content):
     return chapters
 
 def translate_deepseek(text):
-    """Gọi DeepSeek API với prompt chuyên dụng cho Tiên Hiệp"""
+    """Gọi DeepSeek API với retry 3 lần."""
     if not text.strip():
         return ""
 
-    try:
-        response = deepseek.chat.completions.create(
-            model="deepseek-v4-flash",
-            messages=[
-                {"role": "system", "content": SYSTEM_INSTRUCTION},
-                {"role": "user", "content": f"Dịch đoạn truyện sau:\n\n{text}"}
-            ],
-            temperature=0.3,
-            max_tokens=32768,
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"Lỗi API tại chương: {e}")
-        return None
+    for attempt in range(3):
+        try:
+            response = deepseek.chat.completions.create(
+                model="deepseek-v4-flash",
+                messages=[
+                    {"role": "system", "content": SYSTEM_INSTRUCTION},
+                    {"role": "user", "content": f"Dịch đoạn truyện sau:\n\n{text}"}
+                ],
+                temperature=0.3,
+                max_tokens=32768,
+                timeout=360,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            if attempt < 2:
+                wait = 2 ** attempt
+                print(f"Lỗi API, thử lại sau {wait}s ({attempt+1}/3): {e}")
+                time.sleep(wait)
+            else:
+                print(f"Lỗi API sau 3 lần thử: {e}")
+                return None
 
-def trigger_next_run():
-    """Tự động lên lịch chạy lại workflow để tiếp tục xử lý."""
+def trigger_next_run(book_name):
+    """Tự động lên lịch chạy lại workflow cho sách này."""
     token = os.getenv("GITHUB_TOKEN")
     repo = os.getenv("GITHUB_REPOSITORY")
     if not token or not repo:
@@ -123,15 +131,19 @@ def trigger_next_run():
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github.v3+json"
     }
-    resp = requests.post(url, json={"ref": "main"}, headers=headers)
-    if resp.status_code == 204:
-        print("Đã lên lịch chạy lại workflow để tiếp tục.")
-    else:
-        print(f"Không thể lên lịch: {resp.status_code} {resp.text}")
+    body = {"ref": "main", "inputs": {"book_name": book_name}}
+    try:
+        resp = requests.post(url, json=body, headers=headers, timeout=30)
+        if resp.status_code == 204:
+            print(f"Đã lên lịch chạy lại cho [{book_name}].")
+        else:
+            print(f"Không thể lên lịch: {resp.status_code} {resp.text}")
+    except Exception as e:
+        print(f"Lỗi khi tự lên lịch: {e}")
 
 def process_book(file_key, content, start_time):
     """Xử lý một cuốn sách: chia chương, dịch, lưu trữ.
-    Trả về True nếu hoàn tất, False nếu hết thời gian cần reschedule."""
+    Trả về (tiếp_tục, trạng_thái)."""
     story_name = file_key.replace('raw/', '').replace('.txt', '')
 
     raw_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
@@ -144,9 +156,9 @@ def process_book(file_key, content, start_time):
         existing_chapters = {ch["id"]: ch for ch in existing_metadata.get("chapters", [])}
         if existing_metadata.get("raw_hash") == raw_hash:
             print(f"Bỏ qua [{story_name}] — không có thay đổi.")
-            return True
+            return True, "skipped"
         print(f"[{story_name}] Có thay đổi, đã có {len(existing_chapters)} chương cũ.")
-    except:
+    except Exception:
         pass
 
     chapters = split_chapters(content)
@@ -166,7 +178,7 @@ def process_book(file_key, content, start_time):
                     Key=f"translated/{story_name}/metadata.json",
                     Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
                 )
-            return False
+            return False, "timeout"
 
         combined_text = f"{chap['title']}\n\n{chap['content']}"
         chapter_hash = hashlib.sha256(combined_text.encode('utf-8')).hexdigest()
@@ -210,27 +222,33 @@ def process_book(file_key, content, start_time):
         Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
     )
     print(f"Hoàn tất [{story_name}] — {len(metadata['chapters'])} chương ({new_count} mới, {updated_count} cập nhật).")
-    return True
+    return True, "completed"
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Dịch một cuốn sách từ raw/ sang translated/")
+    parser.add_argument("--book", required=True, help="Tên sách (không có đuôi .txt)")
+    args = parser.parse_args()
+
+    book_name = args.book
+    raw_key = f"raw/{book_name}.txt"
+
     start_time = time.time()
-    raw_files = get_all_raw_files()
-    if not raw_files:
-        print("Không tìm thấy file gốc nào trên R2.")
-        return
 
-    print(f"Tìm thấy {len(raw_files)} file gốc trong raw/.")
-    need_reschedule = False
+    try:
+        raw_bytes = s3.get_object(Bucket=R2_BUCKET_NAME, Key=raw_key)["Body"].read()
+        content = decode_content(raw_bytes)
+    except Exception as e:
+        print(f"Không tìm thấy file gốc [{raw_key}] trên R2: {e}")
+        sys.exit(1)
 
-    for file_key, content in raw_files:
-        completed = process_book(file_key, content, start_time)
-        if not completed:
-            need_reschedule = True
-            break
+    print(f"Bắt đầu dịch [{book_name}]...")
+    ok, status = process_book(raw_key, content, start_time)
+    print(f"Kết quả: {status}")
 
-    if need_reschedule:
-        trigger_next_run()
+    if not ok:
+        trigger_next_run(book_name)
+
 
 if __name__ == "__main__":
     main()

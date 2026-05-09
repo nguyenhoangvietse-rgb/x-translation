@@ -1,0 +1,14 @@
+name = "translation-lib"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[r2_buckets]]
+binding = "LIBRARY"
+bucket_name = "n-storage"
+
+[vars]
+OWNER = "nguyenhoangvietse-rgb"
+REPO = "x-translation"
+
+[observability]
+enabled = true
