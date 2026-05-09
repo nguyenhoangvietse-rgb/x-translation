@@ -9,21 +9,26 @@ import { useAppForm } from "@/hooks/form";
 import { uploadService } from "../services/upload.service";
 import { Upload, FileText } from "lucide-react";
 
-const uploadSchema = z.object({
-  isFull: z.boolean(),
-  fromChapter: z.string().optional(),
-  toChapter: z.string().optional(),
-}).refine((data) => {
-  if (!data.isFull) {
-    if (!data.fromChapter || !data.toChapter) {
-      return false;
-    }
-  }
-  return true;
-}, {
-  message: "From and To chapters are required for partial uploads",
-  path: ["fromChapter"],
-});
+const uploadSchema = z
+  .object({
+    isFull: z.boolean(),
+    fromChapter: z.string().optional(),
+    toChapter: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.isFull) {
+        if (!data.fromChapter || !data.toChapter) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: "From and To chapters are required for partial uploads",
+      path: ["fromChapter"],
+    },
+  );
 
 type UploadFormData = z.infer<typeof uploadSchema>;
 
@@ -32,7 +37,10 @@ interface CreateUploadFormProps {
   onSuccess?: () => void;
 }
 
-export function CreateUploadForm({ novelId, onSuccess }: CreateUploadFormProps) {
+export function CreateUploadForm({
+  novelId,
+  onSuccess,
+}: CreateUploadFormProps) {
   const createUpload = useMutation(api.novels.createUpload);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,21 +72,20 @@ export function CreateUploadForm({ novelId, onSuccess }: CreateUploadFormProps) 
           fileName: selectedFile.name,
           fileType: selectedFile.type,
         });
-        
+
         // Upload file to R2
         await uploadService.uploadToR2(url, selectedFile);
-        
-        setUploadProgress("Saving to database...");
 
-        // Construct the public URL
-        const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL || ''}/${key}`;
+        setUploadProgress("Saving to database...");
 
         // Save to Convex
         await createUpload({
           novelId,
-          url: publicUrl,
+          url: key,
           isFull: value.isFull,
-          fromChapter: value.fromChapter ? Number(value.fromChapter) : undefined,
+          fromChapter: value.fromChapter
+            ? Number(value.fromChapter)
+            : undefined,
           toChapter: value.toChapter ? Number(value.toChapter) : undefined,
         });
 
@@ -87,7 +94,9 @@ export function CreateUploadForm({ novelId, onSuccess }: CreateUploadFormProps) 
         setUploadProgress("");
         onSuccess?.();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create upload");
+        setError(
+          err instanceof Error ? err.message : "Failed to create upload",
+        );
         setUploadProgress("");
       } finally {
         setIsSubmitting(false);
@@ -176,10 +185,12 @@ export function CreateUploadForm({ novelId, onSuccess }: CreateUploadFormProps) 
                 <>
                   <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                   <p className="text-sm text-foreground">
-                    <span className="font-semibold">Click to upload</span> or drag
-                    and drop
+                    <span className="font-semibold">Click to upload</span> or
+                    drag and drop
                   </p>
-                  <p className="text-xs text-muted-foreground">TXT files only</p>
+                  <p className="text-xs text-muted-foreground">
+                    TXT files only
+                  </p>
                 </>
               )}
             </div>
@@ -217,7 +228,9 @@ export function CreateUploadForm({ novelId, onSuccess }: CreateUploadFormProps) 
                     onChange={() => field.handleChange(false)}
                     className="w-4 h-4 text-accent"
                   />
-                  <span className="text-sm text-foreground">Partial Chapters</span>
+                  <span className="text-sm text-foreground">
+                    Partial Chapters
+                  </span>
                 </label>
               </div>
             </div>
@@ -273,14 +286,18 @@ export function CreateUploadForm({ novelId, onSuccess }: CreateUploadFormProps) 
           {([canSubmit, isFormSubmitting]) => (
             <button
               type="submit"
-              disabled={!selectedFile || !canSubmit || isSubmitting || isFormSubmitting}
+              disabled={
+                !selectedFile || !canSubmit || isSubmitting || isFormSubmitting
+              }
               className="w-full px-6 py-3.5 rounded-lg font-medium text-primary-foreground transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               style={{
                 background: "var(--gradient-gold)",
                 boxShadow: "var(--shadow-glow)",
               }}
             >
-              {isSubmitting || isFormSubmitting ? uploadProgress || "Processing..." : "Add Upload"}
+              {isSubmitting || isFormSubmitting
+                ? uploadProgress || "Processing..."
+                : "Add Upload"}
             </button>
           )}
         </form.Subscribe>

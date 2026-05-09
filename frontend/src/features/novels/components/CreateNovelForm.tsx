@@ -9,7 +9,11 @@ import { useAppForm } from "@/hooks/form";
 const novelSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title is too long"),
   originalTitle: z.string().max(200, "Original title is too long").optional(),
-  coverPhoto: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  coverPhoto: z
+    .string()
+    .url("Must be a valid URL")
+    .optional()
+    .or(z.literal("")),
   author: z.string().max(100, "Author name is too long").optional(),
   description: z.string().max(1000, "Description is too long").optional(),
 });
@@ -41,8 +45,19 @@ export function CreateNovelForm({ onSuccess }: CreateNovelFormProps = {}) {
       setError(null);
 
       try {
+        const title = value.title.trim().toLowerCase();
+        const slug = title
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9\s-]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-");
+        // replace vietnamese accent
         await createNovel({
           title: value.title.trim().toLowerCase(),
+          slug,
           originalTitle: value.originalTitle || undefined,
           coverPhoto: value.coverPhoto || undefined,
           author: value.author || undefined,
@@ -51,7 +66,7 @@ export function CreateNovelForm({ onSuccess }: CreateNovelFormProps = {}) {
 
         // Reset form
         form.reset();
-        
+
         // Call onSuccess callback if provided
         onSuccess?.();
       } catch (err) {

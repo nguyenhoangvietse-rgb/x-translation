@@ -11,19 +11,21 @@ import { UploadButton } from "@/features/uploads";
 import { UploadsList } from "@/features/uploads";
 import { ChaptersList } from "@/features/chapters";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { PartitionButton } from "@/features/chapters/components/PartitionButton";
 
 export default function NovelDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = use(params);
-  const novel = useQuery(api.novels.getById, { id: id as Id<"novels"> });
+  const { slug } = use(params);
+  const novel = useQuery(api.novels.getBySlug, { slug });
+
   const uploads = useQuery(api.novels.getUploads, {
-    novelId: id as Id<"novels">,
+    novelId: novel?._id as Id<"novels">,
   });
   const chapters = useQuery(api.novels.getChapters, {
-    novelId: id as Id<"novels">,
+    novelId: novel?._id as Id<"novels">,
   });
 
   if (!novel) {
@@ -116,7 +118,10 @@ export default function NovelDetailPage({
               <TabsTrigger value="chapters">Chapters</TabsTrigger>
               <TabsTrigger value="uploads">Uploads</TabsTrigger>
             </TabsList>
-            <UploadButton novelId={id as Id<"novels">} />
+            <div className="flex items-center gap-4">
+              <PartitionButton novelId={novel?._id as Id<"novels">} />
+              <UploadButton novelId={novel?._id as Id<"novels">} />
+            </div>
           </div>
 
           <TabsContent value="chapters">

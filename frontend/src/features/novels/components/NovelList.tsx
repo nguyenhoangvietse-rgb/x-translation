@@ -64,7 +64,7 @@ export function NovelList() {
           {novels.map((novel) => (
             <Link
               key={novel._id}
-              href={`/novels/${novel._id}`}
+              href={`/novels/${novel.slug}`}
               className="rounded-lg border border-border bg-background/50 hover:bg-background/80 hover:border-accent transition-all cursor-pointer group overflow-hidden block"
             >
               <div className="w-full aspect-square relative">

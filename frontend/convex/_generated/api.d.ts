@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as chapters from "../chapters.js";
 import type * as novels from "../novels.js";
+import type * as uploads from "../uploads.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +19,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  chapters: typeof chapters;
   novels: typeof novels;
+  uploads: typeof uploads;
 }>;
 
 /**

@@ -14,6 +14,16 @@ export const getById = query({
   },
 });
 
+export const getBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("novels")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+  },
+});
+
 export const getStats = query({
   handler: async (ctx) => {
     const novels = await ctx.db.query("novels").collect();
@@ -53,6 +63,7 @@ export const create = mutation({
     coverPhoto: v.optional(v.string()),
     author: v.optional(v.string()),
     description: v.optional(v.string()),
+    slug: v.string(),
   },
   handler: async (ctx, args) => {
     // Check if novel with same title already exists

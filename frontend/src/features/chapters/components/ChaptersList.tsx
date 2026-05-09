@@ -1,19 +1,16 @@
 "use client";
 
+import { Doc } from "@/convex/_generated/dataModel";
 import { BookMarked, ExternalLink } from "lucide-react";
-
-interface Chapter {
-  _id: string;
-  _creationTime: number;
-  novelId: string;
-  url?: string;
-}
+import { useParams } from "next/navigation";
 
 interface ChaptersListProps {
-  chapters?: Chapter[];
+  chapters?: Doc<"chapters">[];
 }
 
 export function ChaptersList({ chapters }: ChaptersListProps) {
+  const params = useParams();
+  const slug = params.slug;
   if (!chapters) {
     return (
       <div className="rounded-xl border border-border bg-card/40 backdrop-blur p-6">
@@ -59,12 +56,12 @@ export function ChaptersList({ chapters }: ChaptersListProps) {
                   {index + 1}
                 </div>
                 <span className="text-sm font-medium text-foreground">
-                  Chapter {index + 1}
+                  Chapter {chapter.chapterNumber}: {chapter.title}
                 </span>
               </div>
-              {chapter.url && (
+              {chapter && (
                 <a
-                  href={chapter.url}
+                  href={`/novels/${slug}/chapter-${chapter.chapterNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-xs text-accent hover:underline"
