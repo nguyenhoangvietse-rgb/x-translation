@@ -15,6 +15,7 @@ R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=your_access_key_id
 R2_SECRET_ACCESS_KEY=your_secret_access_key
 R2_BUCKET_NAME=your_bucket_name
+NEXT_PUBLIC_R2_PUBLIC_URL=https://your-bucket.your-domain.com
 ```
 
 ## Getting R2 Credentials
@@ -26,6 +27,27 @@ R2_BUCKET_NAME=your_bucket_name
 5. Create a new API token with read/write permissions
 6. Copy the Access Key ID and Secret Access Key
 7. Your endpoint URL format: `https://<account-id>.r2.cloudflarestorage.com`
+
+## Setting Up Public Access
+
+To enable public access to uploaded files:
+
+1. In your R2 bucket settings, go to "Settings"
+2. Enable "Public Access" or set up a custom domain
+3. If using custom domain:
+   - Add a CNAME record in your Cloudflare DNS
+   - Point it to your R2 bucket
+   - Use this as your `NEXT_PUBLIC_R2_PUBLIC_URL`
+4. If using R2's default public URL:
+   - Use format: `https://pub-<hash>.r2.dev`
+   - Or: `https://<bucket-name>.<account-id>.r2.cloudflarestorage.com` (if public access enabled)
+
+Example `.env.local`:
+```env
+NEXT_PUBLIC_R2_PUBLIC_URL=https://pub-abc123.r2.dev
+# or
+NEXT_PUBLIC_R2_PUBLIC_URL=https://uploads.yourdomain.com
+```
 
 ## Features
 

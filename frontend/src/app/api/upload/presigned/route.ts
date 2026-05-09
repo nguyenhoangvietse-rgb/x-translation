@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Generate unique file name with timestamp
     const timestamp = Date.now()
-    const uniqueFileName = `${timestamp}-${fileName}`
+    const uniqueFileName = `phu-test/${timestamp}-${fileName}`
 
     // Create the PutObject command
     const command = new PutObjectCommand({
@@ -43,6 +43,8 @@ export async function POST(request: NextRequest) {
 
     // Generate pre-signed URL (expires in 5 minutes)
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 })
+
+    console.log('Generated presigned URL for key:', uniqueFileName)
 
     return NextResponse.json({
       url: presignedUrl,

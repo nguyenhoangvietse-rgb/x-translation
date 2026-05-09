@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Generate unique filename
     const timestamp = Date.now()
-    const filename = `${timestamp}-${file.name}`
+    const filename = `phu-test/${timestamp}-${file.name}`
 
     // Upload to R2
     const command = new PutObjectCommand({
@@ -48,9 +48,13 @@ export async function POST(request: NextRequest) {
 
     await s3Client.send(command)
 
+    // Log the actual key that was used
+    console.log('Uploaded to R2 with key:', filename)
+
     return NextResponse.json({
       success: true,
       filename,
+      key: filename, // Return the full key
       size: file.size,
       message: 'File uploaded successfully',
     })
