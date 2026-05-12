@@ -213,18 +213,10 @@ def process_book(file_key, content, start_time, chapter=None):
         force_translate = (chapter is not None and i == chapter)
 
         if chapter is not None and i != chapter:
-            # Single-chapter mode: preserve non-target chapters
+            # Single-chapter mode: preserve only already-translated chapters
             ex = existing_chapters.get(chapter_hash)
             if ex:
                 metadata["chapters"].append(ex)
-            else:
-                metadata["chapters"].append({
-                    "id": i,
-                    "title": chap['title'],
-                    "translated_title": chap['title'],
-                    "path": "",
-                    "hash": f"PENDING_{chapter_hash}"
-                })
             continue
 
         if not force_translate and chapter_hash in existing_chapters:
