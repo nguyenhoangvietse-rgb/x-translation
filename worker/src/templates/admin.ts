@@ -35,7 +35,7 @@ function actionsHtml(b: Book): string {
   <span class="btn btn-outline" style="opacity:.4;cursor:default;display:inline-block">Đang dịch</span>`;
   }
   if (b.status === "pending") {
-    return `<span style="color:#999;font-size:.8rem">Chờ xử lý</span>`;
+    return `<button class="btn btn-outline" hx-post="/api/translate/${encodeURIComponent(b.name)}" hx-swap="outerHTML" hx-target="closest tr">Dịch</button>`;
   }
   return `<button class="btn btn-outline" hx-post="/api/translate/${encodeURIComponent(b.name)}" hx-swap="outerHTML" hx-target="closest tr">Dịch lại</button>`;
 }
