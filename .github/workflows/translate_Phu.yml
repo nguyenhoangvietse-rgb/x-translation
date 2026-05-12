@@ -3,6 +3,15 @@ on:
   repository_dispatch:
     types: [new_book_uploaded_Phu]
   workflow_dispatch:
+    inputs:
+      book_name:
+        description: 'Tên sách (không có đuôi .txt)'
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
 
 jobs:
   process-translation:
@@ -27,4 +36,8 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
-        run: python scripts/translate.py
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: >
+          python scripts/translate.py
+          --book "${{ github.event.client_payload.book_name || inputs.book_name }}"
