@@ -154,10 +154,6 @@ def process_book(file_key, content, start_time):
         meta_obj = s3.get_object(Bucket=R2_BUCKET_NAME, Key=f"translated/{story_name}/metadata.json")
         existing_metadata = json.loads(meta_obj['Body'].read().decode('utf-8'))
         existing_chapters = {ch["id"]: ch for ch in existing_metadata.get("chapters", [])}
-        if existing_metadata.get("raw_hash") == raw_hash:
-            print(f"Bỏ qua [{story_name}] — không có thay đổi.")
-            return True, "skipped"
-        print(f"[{story_name}] Có thay đổi, đã có {len(existing_chapters)} chương cũ.")
     except Exception:
         pass
 
@@ -168,6 +164,7 @@ def process_book(file_key, content, start_time):
     timeout_seconds = 5 * 3600
     new_count = 0
     updated_count = 0
+    skipped = 0
 
     for i, chap in enumerate(chapters):
         if time.time() - start_time > timeout_seconds:
@@ -185,6 +182,7 @@ def process_book(file_key, content, start_time):
 
         if i in existing_chapters and existing_chapters[i].get("hash") == chapter_hash:
             metadata["chapters"].append(existing_chapters[i])
+            skipped += 1
             continue
 
         output_key = f"translated/{story_name}/chapter_{i}.txt"
@@ -220,6 +218,10 @@ def process_book(file_key, content, start_time):
             print(f"Lỗi API — bỏ qua chương {i} của [{story_name}].")
             if i in existing_chapters:
                 metadata["chapters"].append(existing_chapters[i])
+
+    if new_count == 0 and updated_count == 0:
+        print(f"Bỏ qua [{story_name}] — {skipped} chương không thay đổi.")
+        return True, "skipped"
 
     print(f"Hoàn tất [{story_name}] — {len(metadata['chapters'])} chương ({new_count} mới, {updated_count} cập nhật).")
     s3.put_object(
