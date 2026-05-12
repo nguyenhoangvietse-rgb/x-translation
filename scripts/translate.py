@@ -210,18 +210,23 @@ def process_book(file_key, content, start_time):
                 "path": output_key,
                 "hash": chapter_hash
             })
+            s3.put_object(
+                Bucket=R2_BUCKET_NAME,
+                Key=f"translated/{story_name}/metadata.json",
+                Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
+            )
             time.sleep(1.5)
         else:
             print(f"Lỗi API — bỏ qua chương {i} của [{story_name}].")
             if i in existing_chapters:
                 metadata["chapters"].append(existing_chapters[i])
 
+    print(f"Hoàn tất [{story_name}] — {len(metadata['chapters'])} chương ({new_count} mới, {updated_count} cập nhật).")
     s3.put_object(
         Bucket=R2_BUCKET_NAME,
         Key=f"translated/{story_name}/metadata.json",
         Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
     )
-    print(f"Hoàn tất [{story_name}] — {len(metadata['chapters'])} chương ({new_count} mới, {updated_count} cập nhật).")
     return True, "completed"
 
 
