@@ -27,7 +27,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install -r scripts-Phu/requirements.txt
+          pip install -r scripts-viet/requirements.txt
 
       - name: Run Translation Script
         env:
@@ -39,5 +39,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: >
-          python scripts-Phu/translate.py
+          python scripts-viet/translate.py
           --book "${{ github.event.client_payload.book_name || inputs.book_name }}"
