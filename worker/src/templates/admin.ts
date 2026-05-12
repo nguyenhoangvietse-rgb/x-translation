@@ -120,7 +120,7 @@ export const ADMIN_PAGE = `<!DOCTYPE html>
       if (fileInput.files.length) {
         const f = fileInput.files[0];
         if (!f.name.toLowerCase().endsWith(".txt")) { showToast("Only .txt files allowed", "error"); return; }
-        if (f.size > 10 * 1024 * 1024) { showToast("File exceeds 10 MB limit", "error"); return; }
+        if (f.size > 50 * 1024 * 1024) { showToast("File exceeds 50 MB limit", "error"); return; }
         fileInput.form.requestSubmit();
       }
     });
