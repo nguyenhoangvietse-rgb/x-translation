@@ -19,10 +19,25 @@ export async function getNovels(env: Env): Promise<Novel[]> {
         const metaObj = await env.LIBRARY.get(`translated/${name}/metadata.json`);
         if (!metaObj) continue;
         const meta: NovelMeta = JSON.parse(await metaObj.text());
+
+        const hasIntro = meta.chapters.some(c => c.id === 0);
+        let displayName: string | undefined;
+
+        if (hasIntro) {
+          const ch0 = await env.LIBRARY.get(`translated/${name}/chapter_0.txt`);
+          if (ch0) {
+            const body = (await ch0.text()).split(/\n{2,}/)[1];
+            if (body) {
+              displayName = body.trim().split(/\n/)[0]?.trim().slice(0, 80);
+            }
+          }
+        }
+
         novels.push({
           name,
           chapterCount: meta.chapters.filter(c => c.id > 0).length,
-          hasIntro: meta.chapters.some(c => c.id === 0),
+          hasIntro,
+          displayName,
         });
       } catch {}
     }

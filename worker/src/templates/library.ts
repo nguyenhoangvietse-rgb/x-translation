@@ -6,12 +6,16 @@ export function renderLibrary(novels: Novel[]): string {
     ? `<div class="empty">Chưa có truyện nào được dịch.</div>`
     : novels
         .sort((a, b) => a.name.localeCompare(b.name))
-        .map(n => `
+        .map(n => {
+          const displayName = n.displayName || n.name;
+          const initial = displayName.charAt(0);
+          return `
           <a href="/read/${encodeURIComponent(n.name)}" class="novel-card">
-            <div class="novel-cover">${n.name.charAt(0)}</div>
-            <div class="novel-name">${escapeHtml(n.name)}</div>
+            <div class="novel-cover">${escapeHtml(initial)}</div>
+            <div class="novel-name" title="${escapeHtml(n.name)}">${escapeHtml(displayName)}</div>
             <div class="novel-meta">${n.chapterCount} chương</div>
-          </a>`)
+          </a>`;
+        })
         .join("");
 
   return `<!DOCTYPE html>

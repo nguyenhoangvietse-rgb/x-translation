@@ -22,6 +22,7 @@ export interface Novel {
   name: string;
   chapterCount: number;
   hasIntro: boolean;
+  displayName?: string;
 }
 
 export interface Chapter {
