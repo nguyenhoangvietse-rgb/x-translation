@@ -36,7 +36,7 @@ export function renderLibrary(novels: Novel[]): string {
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
     .novel-card { display: flex; flex-direction: column; align-items: center; background: #fff; border-radius: 10px; padding: 1.5rem 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); transition: transform .15s, box-shadow .15s; text-decoration: none; color: inherit; }
     .novel-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.12); text-decoration: none; }
-    .novel-cover { width: 64px; height: 64px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #818cf8); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin-bottom: .75rem; }
+    .novel-cover { width: 90px; height: 120px; border-radius: 6px; background: linear-gradient(135deg, #6366f1, #818cf8); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin-bottom: .75rem; }
     .novel-name { font-size: .9rem; font-weight: 600; text-align: center; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .novel-meta { font-size: .75rem; color: #888; margin-top: .35rem; }
     @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
