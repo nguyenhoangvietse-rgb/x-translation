@@ -1,7 +1,7 @@
 name: Auto Translate Agent
 on:
   repository_dispatch:
-    types: [new_book_uploaded]
+    types: [new_book_uploaded_Phu]
   workflow_dispatch:
 
 jobs:
