@@ -90,9 +90,9 @@ export default {
 
     if (request.method === "POST" && path === "/api/upload") {
       const formData = await request.formData();
-      const file = formData.get("file");
+      const file = formData.get("file") as File | null;
 
-      if (!file || !(file instanceof File)) {
+      if (!file) {
         return new Response(
           `<div class="empty" data-toast="No file selected" data-toast-type="error">No file selected.</div>`,
           { headers: { "Content-Type": "text/html" } }
@@ -223,9 +223,9 @@ export default {
     if (request.method === "POST" && coverUploadMatch) {
       const name = decodeURIComponent(coverUploadMatch[1]);
       const formData = await request.formData();
-      const file = formData.get("cover");
+      const file = formData.get("cover") as File | null;
 
-      if (!file || !(file instanceof File)) {
+      if (!file) {
         return new Response(coverCell(name, false, "No file selected", "error"), { headers: { "Content-Type": "text/html" } });
       }
 

@@ -27,8 +27,10 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
           <span class="ch-num">#${c.id}</span>
           <span class="ch-title">${escapeHtml(c.translated_title || c.title)}</span>
         </a>
-        <button onclick="fetch('/api/retranslate/${encodeURIComponent(name)}/${c.id}',{method:'POST'}).then(r=>r.ok&&(this.textContent='Đã gửi'))"
-          style="border:none;background:none;color:#6366f1;font-size:.65rem;cursor:pointer;padding:.2rem .5rem;white-space:nowrap">Dịch lại</button>
+        ${!meta.translating
+          ? `<button onclick="fetch('/api/retranslate/${encodeURIComponent(name)}/${c.id}',{method:'POST'}).then(r=>r.ok&&(this.textContent='Đã gửi'))"
+            style="border:none;background:none;color:#6366f1;font-size:.65rem;cursor:pointer;padding:.2rem .5rem;white-space:nowrap">Dịch lại</button>`
+          : ''}
       </li>`)
     .join("");
 
@@ -59,6 +61,7 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
   <a href="/" class="back">← Thư viện</a>
   <h1>${escapeHtml(displayName)}</h1>
   <p class="subtitle">${reading.length} chương</p>
+  ${meta.translating ? '<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.85rem;color:#4338ca">⚠ Truyện đang được dịch, một số chương có thể chưa được dịch xong.</div>' : ''}
   ${introHtml}
   <ol>${chapterList || `<div class="empty">Chưa có chương nào được dịch.</div>`}</ol>
 </body>

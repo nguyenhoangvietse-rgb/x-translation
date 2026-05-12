@@ -44,6 +44,7 @@ export async function getNovels(env: Env): Promise<Novel[]> {
           hasIntro,
           displayName,
           hasCover,
+          translating: meta.translating,
         });
       } catch {}
     }

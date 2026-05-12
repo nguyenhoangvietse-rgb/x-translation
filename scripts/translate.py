@@ -127,6 +127,16 @@ def translate_deepseek(text):
                 print(f"Lỗi API sau 3 lần thử: {e}")
                 return None
 
+def is_likely_untranslated(text):
+    """>25% CJK chars → likely still Chinese, not Vietnamese."""
+    if not text:
+        return True
+    total = len(text.strip())
+    if total == 0:
+        return True
+    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    return (cjk / total) > 0.25
+
 def trigger_next_run(book_name):
     """Tự động lên lịch chạy lại workflow cho sách này."""
     token = os.getenv("GITHUB_TOKEN")
@@ -170,7 +180,17 @@ def process_book(file_key, content, start_time, chapter=None):
 
     chapters = split_chapters(content)
     print(f"[{story_name}] Tổng số chương: {len(chapters)}")
-    metadata = {"story_name": story_name, "chapters": [], "raw_hash": raw_hash}
+    metadata = {"story_name": story_name, "chapters": [], "raw_hash": raw_hash, "translating": True}
+
+    # Đánh dấu đang dịch
+    try:
+        s3.put_object(
+            Bucket=R2_BUCKET_NAME,
+            Key=f"translated/{story_name}/metadata.json",
+            Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
+        )
+    except Exception:
+        pass
 
     timeout_seconds = 5 * 3600
     new_count = 0
@@ -219,6 +239,11 @@ def process_book(file_key, content, start_time, chapter=None):
 
         translated_text = translate_deepseek(combined_text)
 
+        if translated_text and is_likely_untranslated(translated_text):
+            cjk_ratio = sum(1 for c in translated_text if '\u4e00' <= c <= '\u9fff') / max(len(translated_text), 1)
+            print(f"Chương {i}: bản dịch vẫn nhiều tiếng Trung ({cjk_ratio:.0%}), coi như fail.")
+            translated_text = None
+
         if translated_text:
             s3.put_object(
                 Bucket=R2_BUCKET_NAME,
@@ -256,9 +281,19 @@ def process_book(file_key, content, start_time, chapter=None):
                 })
 
     if new_count == 0:
+        metadata["translating"] = False
+        try:
+            s3.put_object(
+                Bucket=R2_BUCKET_NAME,
+                Key=f"translated/{story_name}/metadata.json",
+                Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
+            )
+        except Exception:
+            pass
         print(f"Bỏ qua [{story_name}] — {skipped} chương không thay đổi.")
         return True, "skipped"
 
+    metadata["translating"] = False
     print(f"Hoàn tất [{story_name}] — {len(metadata['chapters'])} chương ({new_count} mới).")
     s3.put_object(
         Bucket=R2_BUCKET_NAME,
