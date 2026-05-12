@@ -18,7 +18,7 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
       if (c.id === ch.id) {
         return `<option value="${c.id}" selected>${escapeHtml(chapterTitle)}</option>`;
       }
-      return `<option value="${c.id}">Chương ${c.id}: ${escapeHtml(c.title)}</option>`;
+      return `<option value="${c.id}">Chương ${c.id}: ${escapeHtml(c.translated_title || c.title)}</option>`;
     })
     .join("");
 
@@ -42,7 +42,7 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(chapterTitle)} — ${escapeHtml(name)}</title>
+  <title>${escapeHtml(chapterTitle)} — ${escapeHtml(meta.translated_name || name)}</title>
   ${SHARED_CSS}
   <style>
     body { max-width: 720px; margin: 0 auto; padding: 1rem 1rem 2rem; }

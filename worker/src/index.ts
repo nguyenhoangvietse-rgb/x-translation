@@ -157,14 +157,18 @@ export default {
       }
 
       const toastData = trigger.ok ? "" : ` data-toast="Trigger failed: ${escapeHtml(trigger.error || "")}" data-toast-type="error"`;
+      const badge = trigger.ok ? statusBadge("translating") : statusBadge(book.status);
+      const btnHtml = trigger.ok
+        ? `<button class="btn btn-outline" disabled style="opacity:.5">Đã kích hoạt</button>`
+        : `<button class="btn btn-outline" hx-post="/api/translate/${encodeURIComponent(book.name)}" hx-swap="outerHTML" hx-target="closest tr">Dịch lại</button>`;
 
       return new Response(
         `<tr${toastData}>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;font-size:.9rem"><strong>${escapeHtml(book.name)}</strong></td>
-  <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">${statusBadge(book.status)}</td>
+  <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">${badge}</td>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.8rem">${escapeHtml(book.uploaded)}</td>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">
-    <button class="btn btn-outline" hx-post="/api/translate/${encodeURIComponent(book.name)}" hx-swap="outerHTML" hx-target="closest tr">Dịch lại</button>
+    ${btnHtml}
   </td>
 </tr>`,
         { headers: { "Content-Type": "text/html; charset=utf-8" } }
