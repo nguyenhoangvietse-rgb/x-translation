@@ -39,7 +39,7 @@ export const ADMIN_PAGE = `<!DOCTYPE html>
     .drop-zone.dragover { border-color: #6366f1; background: #eef2ff; }
     .drop-zone p { color: #888; font-size: .9rem; }
     .drop-zone p strong { color: #6366f1; }
-    input[type=file] { display: none; }
+    input[type=file] { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
     .progress { display: none; margin-top: .8rem; }
     .progress.htmx-request { display: block; }
     .bar { height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden; margin-bottom: .4rem; }
@@ -92,13 +92,13 @@ export const ADMIN_PAGE = `<!DOCTYPE html>
         fileInput.form.requestSubmit();
       }
     });
-    document.body.addEventListener("htmx:afterOnLoad", (e: any) => {
+    document.body.addEventListener("htmx:afterOnLoad", (e) => {
       const el = e.detail.elt;
       const msg = el.getAttribute("data-toast");
       const type = el.getAttribute("data-toast-type");
       if (msg) showToast(msg, type);
     });
-    function showToast(msg: string, type: string) {
+    function showToast(msg, type) {
       toast.textContent = msg;
       toast.className = "toast toast-" + (type === "error" ? "error" : "success") + " show";
       setTimeout(() => toast.classList.remove("show"), 3000);
