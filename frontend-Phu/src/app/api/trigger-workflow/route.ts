@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          event_type: 'new_book_uploaded_Phu',
+          event_type: 'new_book_uploaded',
           client_payload: {
             fileName,
             fileKey,
