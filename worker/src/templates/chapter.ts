@@ -55,7 +55,7 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
   </style>
 </head>
 <body>
-  <a href="/read/${encodeURIComponent(name)}" class="back">← ${escapeHtml(name)}</a>
+  <a href="/read/${encodeURIComponent(name)}" class="back">← ${escapeHtml(meta.translated_name || name)}</a>
 
   ${navBar(true)}
 

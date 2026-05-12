@@ -15,6 +15,7 @@ export interface Book {
 export interface NovelMeta {
   story_name: string;
   raw_hash: string;
+  translated_name?: string;
   chapters: { id: number; title: string; translated_title?: string; path: string; hash?: string }[];
 }
 

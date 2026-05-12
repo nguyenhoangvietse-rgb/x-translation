@@ -5,6 +5,10 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
   const intro = meta.chapters.find(c => c.id === 0);
   const reading = meta.chapters.filter(c => c.id > 0);
 
+  const displayName = introContent
+    ? introContent.split(/\n{2,}/)[1]?.trim().split(/\n/)[0]?.trim().slice(0, 80) || name
+    : name;
+
   const introHtml = intro && introContent
     ? (() => {
         const introParas = introContent.split(/\n{2,}/).map(p => p.trim()).filter(p => p.length > 0);
@@ -31,7 +35,7 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(name)} — Chapters</title>
+  <title>${escapeHtml(displayName)} — Chapters</title>
   ${SHARED_CSS}
   <style>
     body { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
@@ -51,7 +55,7 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
 </head>
 <body>
   <a href="/" class="back">← Thư viện</a>
-  <h1>${escapeHtml(name)}</h1>
+  <h1>${escapeHtml(displayName)}</h1>
   <p class="subtitle">${reading.length} chương</p>
   ${introHtml}
   <ol>${chapterList || `<div class="empty">Chưa có chương nào được dịch.</div>`}</ol>

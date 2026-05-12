@@ -163,7 +163,6 @@ def process_book(file_key, content, start_time):
 
     timeout_seconds = 5 * 3600
     new_count = 0
-    updated_count = 0
     skipped = 0
 
     for i, chap in enumerate(chapters):
@@ -181,18 +180,14 @@ def process_book(file_key, content, start_time):
         chapter_hash = hashlib.sha256(combined_text.encode('utf-8')).hexdigest()
 
         if chapter_hash in existing_chapters:
-            metadata["chapters"].append(existing_chapters[i])
+            metadata["chapters"].append(existing_chapters[chapter_hash])
             skipped += 1
             continue
 
         output_key = f"translated/{story_name}/chapter_{i}.txt"
 
-        if chapter_hash in existing_chapters:
-            print(f"Đang dịch lại [{story_name}] chương {i}: {chap['title']}")
-            updated_count += 1
-        else:
-            print(f"Đang dịch [{story_name}] chương {i}: {chap['title']}")
-            new_count += 1
+        print(f"Đang dịch [{story_name}] chương {i}: {chap['title']}")
+        new_count += 1
 
         translated_text = translate_deepseek(combined_text)
 
@@ -204,6 +199,8 @@ def process_book(file_key, content, start_time):
             )
             paras = translated_text.split('\n\n')
             translated_title = paras[0].strip() if paras else chap['title']
+            if i == 0 and len(paras) > 1:
+                metadata["translated_name"] = paras[1].strip().split('\n')[0].strip()[:80]
             metadata["chapters"].append({
                 "id": i,
                 "title": chap['title'],
@@ -222,11 +219,11 @@ def process_book(file_key, content, start_time):
             if chapter_hash in existing_chapters:
                 metadata["chapters"].append(existing_chapters[chapter_hash])
 
-    if new_count == 0 and updated_count == 0:
+    if new_count == 0:
         print(f"Bỏ qua [{story_name}] — {skipped} chương không thay đổi.")
         return True, "skipped"
 
-    print(f"Hoàn tất [{story_name}] — {len(metadata['chapters'])} chương ({new_count} mới, {updated_count} cập nhật).")
+    print(f"Hoàn tất [{story_name}] — {len(metadata['chapters'])} chương ({new_count} mới).")
     s3.put_object(
         Bucket=R2_BUCKET_NAME,
         Key=f"translated/{story_name}/metadata.json",
