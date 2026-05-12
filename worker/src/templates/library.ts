@@ -9,9 +9,12 @@ export function renderLibrary(novels: Novel[]): string {
         .map(n => {
           const displayName = n.displayName || n.name;
           const initial = displayName.charAt(0);
+          const coverHtml = n.hasCover
+            ? `<img class="novel-cover" src="/cover/${encodeURIComponent(n.name)}" alt="" style="object-fit:cover">`
+            : `<div class="novel-cover">${escapeHtml(initial)}</div>`;
           return `
           <a href="/read/${encodeURIComponent(n.name)}" class="novel-card">
-            <div class="novel-cover">${escapeHtml(initial)}</div>
+            ${coverHtml}
             <div class="novel-name" title="${escapeHtml(n.name)}">${escapeHtml(displayName)}</div>
             <div class="novel-meta">${n.chapterCount} chương</div>
           </a>`;

@@ -22,11 +22,13 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
 
   const chapterList = reading
     .map(c => `
-      <li>
-        <a href="/read/${encodeURIComponent(name)}/${c.id}">
+      <li style="display:flex;align-items:center">
+        <a href="/read/${encodeURIComponent(name)}/${c.id}" style="flex:1;display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;text-decoration:none;color:#333">
           <span class="ch-num">#${c.id}</span>
           <span class="ch-title">${escapeHtml(c.translated_title || c.title)}</span>
         </a>
+        <button onclick="fetch('/api/retranslate/${encodeURIComponent(name)}/${c.id}',{method:'POST'}).then(r=>r.ok&&(this.textContent='Đã gửi'))"
+          style="border:none;background:none;color:#6366f1;font-size:.65rem;cursor:pointer;padding:.2rem .5rem;white-space:nowrap">Dịch lại</button>
       </li>`)
     .join("");
 
@@ -47,8 +49,8 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
     .intro-content { font-family: Roboto, sans-serif; font-size: .95rem; line-height: 1.8; color: #444; }
     .intro-content p { margin-bottom: .8em; }
     ol { list-style: none; display: flex; flex-direction: column; gap: 1px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-    li a { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; background: #fff; text-decoration: none; color: #333; transition: background .1s; }
-    li a:hover { background: #fafaff; text-decoration: none; }
+    li a { transition: background .1s; }
+    li a:hover { background: #fafaff; }
     .ch-num { font-size: .75rem; color: #888; min-width: 2rem; }
     .ch-title { font-size: .9rem; }
   </style>

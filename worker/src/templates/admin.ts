@@ -7,10 +7,11 @@ export function renderAdminTable(books: Book[]): string {
   }
   return `
 <table style="width:100%;border-collapse:collapse">
-  <thead><tr><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Name</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Status</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Uploaded</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Actions</th></tr></thead>
+  <thead><tr><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Cover</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Name</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Status</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Uploaded</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Actions</th></tr></thead>
   <tbody>
     ${books.sort((a, b) => b.uploaded.localeCompare(a.uploaded)).map(b => `
       <tr>
+        ${coverCellHtml(b.name, b.hasCover)}
         <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;font-size:.9rem"><strong>${escapeHtml(b.name)}</strong></td>
         <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">${statusBadge(b.status)}</td>
         <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.8rem">${escapeHtml(b.uploaded)}</td>
@@ -20,6 +21,20 @@ export function renderAdminTable(books: Book[]): string {
       </tr>`).join("")}
   </tbody>
 </table>`;
+}
+
+function coverCellHtml(name: string, hasCover?: boolean): string {
+  const thumb = hasCover
+    ? `<img src="/cover/${encodeURIComponent(name)}" style="width:50px;height:70px;object-fit:cover;border-radius:4px;display:block" alt="">`
+    : `<div style="width:50px;height:70px;border:1px dashed #ccc;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:.7rem">+</div>`;
+  return `
+  <td style="padding:.3rem .8rem;border-bottom:1px solid #f0f0f0;vertical-align:middle">
+    <form hx-post="/api/cover/${encodeURIComponent(name)}" hx-encoding="multipart/form-data" hx-swap="outerHTML" hx-target="closest td">
+      ${thumb}
+      <input type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif" style="position:absolute;opacity:0;width:1px;height:1px" onchange="this.form.requestSubmit()">
+      <button type="button" class="btn btn-ghost" style="font-size:.65rem;padding:.15rem .4rem;margin-top:.2rem" onclick="this.previousElementSibling.click()">${hasCover ? "Đổi" : "Thêm"}</button>
+    </form>
+  </td>`;
 }
 
 export const ADMIN_PAGE = `<!DOCTYPE html>

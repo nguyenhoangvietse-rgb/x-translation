@@ -141,7 +141,7 @@ export default {
       const rawObj = await env.LIBRARY.head(`raw/${bookName}.txt`);
       if (!rawObj) {
         return new Response(
-          `<tr data-toast="Book not found: ${escapeHtml(bookName)}" data-toast-type="error"><td colspan="4">Book not found.</td></tr>`,
+          `<tr data-toast="Book not found: ${escapeHtml(bookName)}" data-toast-type="error"><td colspan="5">Book not found.</td></tr>`,
           { headers: { "Content-Type": "text/html" } }
         );
       }
@@ -151,7 +151,7 @@ export default {
       const book = books.find(b => b.name === bookName);
 
       if (!book) {
-        return new Response(`<tr><td colspan="4">Book removed.</td></tr>`, {
+        return new Response(`<tr><td colspan="5">Book removed.</td></tr>`, {
           headers: { "Content-Type": "text/html" },
         });
       }
@@ -162,8 +162,19 @@ export default {
         ? `<button class="btn btn-outline" disabled style="opacity:.5">Đã kích hoạt</button>`
         : `<button class="btn btn-outline" hx-post="/api/translate/${encodeURIComponent(book.name)}" hx-swap="outerHTML" hx-target="closest tr">Dịch lại</button>`;
 
+      const coverThumb = book.hasCover
+        ? `<img src="/cover/${encodeURIComponent(book.name)}" style="width:50px;height:70px;object-fit:cover;border-radius:4px;display:block" alt="">`
+        : `<div style="width:50px;height:70px;border:1px dashed #ccc;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:.7rem">+</div>`;
+
       return new Response(
         `<tr${toastData}>
+  <td style="padding:.3rem .8rem;border-bottom:1px solid #f0f0f0;vertical-align:middle">
+    <form hx-post="/api/cover/${encodeURIComponent(book.name)}" hx-encoding="multipart/form-data" hx-swap="outerHTML" hx-target="closest td">
+      ${coverThumb}
+      <input type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif" style="position:absolute;opacity:0;width:1px;height:1px" onchange="this.form.requestSubmit()">
+      <button type="button" class="btn btn-ghost" style="font-size:.65rem;padding:.15rem .4rem;margin-top:.2rem" onclick="this.previousElementSibling.click()">${book.hasCover ? "Đổi" : "Thêm"}</button>
+    </form>
+  </td>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;font-size:.9rem"><strong>${escapeHtml(book.name)}</strong></td>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">${badge}</td>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.8rem">${escapeHtml(book.uploaded)}</td>
@@ -173,6 +184,19 @@ export default {
 </tr>`,
         { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
+    }
+
+    // ── Chapter retranslate route ───────────────
+
+    const retranslateMatch = path.match(/^\/api\/retranslate\/([^/]+)\/(\d+)$/);
+    if (request.method === "POST" && retranslateMatch) {
+      const name = decodeURIComponent(retranslateMatch[1]);
+      const chapterId = parseInt(retranslateMatch[2], 10);
+      const trigger = await triggerWorkflow(env, name, chapterId);
+      if (!trigger.ok) {
+        return new Response("FAILED", { status: 500 });
+      }
+      return new Response("OK", { status: 200 });
     }
 
     // ── Cover image routes ──────────────────────
@@ -233,7 +257,7 @@ function coverCell(name: string, hasCover: boolean, toastMsg: string, toastType:
   return `<td data-toast="${escapeHtml(toastMsg)}" data-toast-type="${toastType}" style="padding:.3rem .8rem;border-bottom:1px solid #f0f0f0;vertical-align:middle">
     <form hx-post="/api/cover/${encodeURIComponent(name)}" hx-encoding="multipart/form-data" hx-swap="outerHTML" hx-target="closest td">
       ${thumb}
-      <input type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif" style="position:absolute;opacity:0;width:0;height:0" onchange="this.form.requestSubmit()">
+      <input type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif" style="position:absolute;opacity:0;width:1px;height:1px" onchange="this.form.requestSubmit()">
       <button type="button" class="btn btn-ghost" style="font-size:.65rem;padding:.15rem .4rem;margin-top:.2rem" onclick="this.previousElementSibling.click()">${hasCover ? "Đổi" : "Thêm"}</button>
     </form>
   </td>`;

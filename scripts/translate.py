@@ -61,7 +61,7 @@ def split_chapters(content):
     print(f"chuẩn bị chia chương")
     # Regex này sẽ bắt: 第 + (số Hán/Số thường) + 章/回 + (Tên chương)
     # Nó cũng xử lý các dòng có chứa dấu hỏi, dấu chấm, khoảng trắng
-    pattern = r'(^[\s\u3000]*第[\d一二三四五六七八九十百千万零]+[章回节卷].*)'
+    pattern = r'(^[\s\u3000]*(?:第[\d一二三四五六七八九十百千万零]+[章回节卷]|最终章|终章|大结局|结局[篇章]?|番外篇?|序章|楔子|尾声|后记|完结).*)'
     
     parts = re.split(pattern, content, flags=re.MULTILINE)
 
@@ -108,7 +108,16 @@ def translate_deepseek(text):
                 max_tokens=32768,
                 timeout=360,
             )
-            return response.choices[0].message.content.strip()
+            translated = response.choices[0].message.content.strip()
+            if translated == text.strip():
+                if attempt < 2:
+                    print(f"Output trùng input, retry ({attempt+1}/3)")
+                    time.sleep(2 ** attempt)
+                    continue
+                else:
+                    print(f"Output trùng input sau 3 lần, coi như fail.")
+                    return None
+            return translated
         except Exception as e:
             if attempt < 2:
                 wait = 2 ** attempt
@@ -141,8 +150,10 @@ def trigger_next_run(book_name):
     except Exception as e:
         print(f"Lỗi khi tự lên lịch: {e}")
 
-def process_book(file_key, content, start_time):
+def process_book(file_key, content, start_time, chapter=None):
     """Xử lý một cuốn sách: chia chương, dịch, lưu trữ.
+    chapter=None: dịch tất cả chương mới/cập nhật
+    chapter=N: chỉ dịch chapter N (force re-translate), giữ nguyên các chapter khác
     Trả về (tiếp_tục, trạng_thái)."""
     story_name = file_key.replace('raw/', '').replace('.txt', '')
 
@@ -179,7 +190,24 @@ def process_book(file_key, content, start_time):
         combined_text = f"{chap['title']}\n\n{chap['content']}"
         chapter_hash = hashlib.sha256(combined_text.encode('utf-8')).hexdigest()
 
-        if chapter_hash in existing_chapters:
+        force_translate = (chapter is not None and i == chapter)
+
+        if chapter is not None and i != chapter:
+            # Single-chapter mode: preserve non-target chapters
+            ex = existing_chapters.get(chapter_hash)
+            if ex:
+                metadata["chapters"].append(ex)
+            else:
+                metadata["chapters"].append({
+                    "id": i,
+                    "title": chap['title'],
+                    "translated_title": chap['title'],
+                    "path": "",
+                    "hash": f"PENDING_{chapter_hash}"
+                })
+            continue
+
+        if not force_translate and chapter_hash in existing_chapters:
             metadata["chapters"].append(existing_chapters[chapter_hash])
             skipped += 1
             continue
@@ -218,6 +246,14 @@ def process_book(file_key, content, start_time):
             print(f"Lỗi API — bỏ qua chương {i} của [{story_name}].")
             if chapter_hash in existing_chapters:
                 metadata["chapters"].append(existing_chapters[chapter_hash])
+            else:
+                metadata["chapters"].append({
+                    "id": i,
+                    "title": chap['title'],
+                    "translated_title": chap['title'],
+                    "path": "",
+                    "hash": f"PENDING_{chapter_hash}"
+                })
 
     if new_count == 0:
         print(f"Bỏ qua [{story_name}] — {skipped} chương không thay đổi.")
@@ -235,6 +271,7 @@ def process_book(file_key, content, start_time):
 def main():
     parser = argparse.ArgumentParser(description="Dịch một cuốn sách từ raw/ sang translated/")
     parser.add_argument("--book", required=True, help="Tên sách (không có đuôi .txt)")
+    parser.add_argument("--chapter", type=int, default=None, help="Chỉ dịch chapter này (0-index)")
     args = parser.parse_args()
 
     book_name = args.book
@@ -250,7 +287,7 @@ def main():
         sys.exit(1)
 
     print(f"Bắt đầu dịch [{book_name}]...")
-    ok, status = process_book(raw_key, content, start_time)
+    ok, status = process_book(raw_key, content, start_time, chapter=args.chapter)
     print(f"Kết quả: {status}")
 
     if not ok:
