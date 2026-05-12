@@ -15,10 +15,11 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
 
   const navOptions = reading
     .map(c => {
+      const label = `${c.volume ? c.volume + " · " : ""}${escapeHtml(c.translated_title || c.title)}`;
       if (c.id === ch.id) {
-        return `<option value="${c.id}" selected>${escapeHtml(chapterTitle)}</option>`;
+        return `<option value="${c.id}" selected>${label}</option>`;
       }
-      return `<option value="${c.id}">${escapeHtml(c.translated_title || c.title)}</option>`;
+      return `<option value="${c.id}">${label}</option>`;
     })
     .join("");
 

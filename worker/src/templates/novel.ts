@@ -25,7 +25,7 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
       <li style="display:flex;align-items:center">
         <a href="/read/${encodeURIComponent(name)}/${c.id}" style="flex:1;display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;text-decoration:none;color:#333">
           <span class="ch-num">#${c.id}</span>
-          <span class="ch-title">${escapeHtml(c.translated_title || c.title)}</span>
+          <span class="ch-title">${c.volume ? `${escapeHtml(c.volume)} · ` : ''}${escapeHtml(c.translated_title || c.title)}</span>
         </a>
         ${!meta.translating
           ? `<button onclick="fetch('/api/retranslate/${encodeURIComponent(name)}/${c.id}',{method:'POST'}).then(r=>r.ok&&(this.textContent='Đã gửi'))"

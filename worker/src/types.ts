@@ -19,7 +19,7 @@ export interface NovelMeta {
   raw_hash: string;
   translated_name?: string;
   translating?: boolean;
-  chapters: { id: number; title: string; translated_title?: string; path: string; hash?: string }[];
+  chapters: { id: number; title: string; translated_title?: string; path: string; hash?: string; volume?: string }[];
 }
 
 export interface Novel {
@@ -35,4 +35,5 @@ export interface Chapter {
   id: number;
   title: string;
   translated_title?: string;
+  volume?: string;
 }

@@ -77,17 +77,21 @@ def split_chapters(content):
         })
     
     # Duyệt qua các cặp (Tiêu đề, Nội dung)
+    volume = None
     for i in range(1, len(parts), 2):
         title = parts[i].strip()
-        # Nội dung nằm ngay sau tiêu đề
         body = parts[i+1].strip() if i+1 < len(parts) else ""
         
-        # Nếu tiêu đề quá ngắn hoặc bị lỗi, có thể gộp lại, nhưng thường Regex trên là đủ
+        if not body:
+            # Header quyển/section, không có nội dung → ghi nhớ volume
+            volume = title
+            continue
+        
         chapters.append({
             "title": title, 
-            "content": body
+            "content": body,
+            "volume": volume
         })
-        
     
     return chapters
 
@@ -251,7 +255,8 @@ def process_book(file_key, content, start_time, chapter=None):
                 "title": chap['title'],
                 "translated_title": translated_title,
                 "path": output_key,
-                "hash": chapter_hash
+                "hash": chapter_hash,
+                "volume": chap.get("volume", ""),
             })
             s3.put_object(
                 Bucket=R2_BUCKET_NAME,
@@ -284,7 +289,8 @@ def process_book(file_key, content, start_time, chapter=None):
                     "title": chap['title'],
                     "translated_title": chap['title'],
                     "path": "",
-                    "hash": f"PENDING_{chapter_hash}"
+                    "hash": f"PENDING_{chapter_hash}",
+                    "volume": chap.get("volume", ""),
                 })
 
     if new_count == 0:
