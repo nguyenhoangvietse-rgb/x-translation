@@ -99,9 +99,9 @@ export default {
         );
       }
 
-      if (file.size > 10 * 1024 * 1024) {
+      if (file.size > 50 * 1024 * 1024) {
         return new Response(
-          `<div class="empty" data-toast="File exceeds 10 MB limit" data-toast-type="error">File too large.</div>`,
+          `<div class="empty" data-toast="File exceeds 50 MB limit" data-toast-type="error">File too large.</div>`,
           { headers: { "Content-Type": "text/html" } }
         );
       }

@@ -87,7 +87,7 @@ export const ADMIN_PAGE = `<!DOCTYPE html>
     <h2>Upload New Book</h2>
     <form hx-post="/api/upload" hx-encoding="multipart/form-data" hx-swap="outerHTML" hx-target="#book-list" hx-indicator="#upload-progress">
       <div class="drop-zone" id="drop-zone">
-        <p>Drop <strong>.txt</strong> file here or <strong>click to browse</strong> (max 10 MB)</p>
+        <p>Drop <strong>.txt</strong> file here or <strong>click to browse</strong> (max 50 MB)</p>
         <input type="file" name="file" id="file-input" accept=".txt" />
       </div>
       <div class="progress" id="upload-progress">
