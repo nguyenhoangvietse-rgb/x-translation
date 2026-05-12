@@ -1,0 +1,57 @@
+import { s3Client } from "@/lib/s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { NextRequest, NextResponse } from "next/server";
+
+export async function POST(request: NextRequest) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file") as File;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    // Validate file type
+    if (!file.name.endsWith(".txt")) {
+      return NextResponse.json(
+        { error: "Only .txt files are allowed" },
+        { status: 400 },
+      );
+    }
+
+    // Read file buffer
+    const buffer = await file.arrayBuffer();
+    const fileBuffer = Buffer.from(buffer);
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const filename = `phu-test/${timestamp}-${file.name}`;
+
+    // Upload to R2
+    const command = new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME || "",
+      Key: filename,
+      Body: fileBuffer,
+      ContentType: "text/plain",
+    });
+
+    await s3Client.send(command);
+
+    // Log the actual key that was used
+    console.log("Uploaded to R2 with key:", filename);
+
+    return NextResponse.json({
+      success: true,
+      filename,
+      key: filename, // Return the full key
+      size: file.size,
+      message: "File uploaded successfully",
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+    return NextResponse.json(
+      { error: "Failed to upload file" },
+      { status: 500 },
+    );
+  }
+}
