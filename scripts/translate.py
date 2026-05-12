@@ -267,6 +267,21 @@ def process_book(file_key, content, start_time, chapter=None):
                 Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
             )
             time.sleep(1.5)
+
+            # Check stop marker
+            try:
+                s3.head_object(Bucket=R2_BUCKET_NAME, Key=f"translated/{story_name}/_stop")
+                s3.delete_object(Bucket=R2_BUCKET_NAME, Key=f"translated/{story_name}/_stop")
+                metadata["translating"] = False
+                s3.put_object(
+                    Bucket=R2_BUCKET_NAME,
+                    Key=f"translated/{story_name}/metadata.json",
+                    Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
+                )
+                print(f"[{story_name}] Người dùng yêu cầu dừng. Đã dừng ở chương {i}.")
+                sys.exit(0)
+            except Exception:
+                pass
         else:
             print(f"Lỗi API — bỏ qua chương {i} của [{story_name}].")
             if chapter_hash in existing_chapters:

@@ -11,6 +11,7 @@ export interface Book {
   status: "done" | "pending";
   chapters: number;
   hasCover?: boolean;
+  translating?: boolean;
 }
 
 export interface NovelMeta {

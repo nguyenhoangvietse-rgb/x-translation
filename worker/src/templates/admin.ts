@@ -9,18 +9,35 @@ export function renderAdminTable(books: Book[]): string {
 <table style="width:100%;border-collapse:collapse">
   <thead><tr><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Cover</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Name</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Status</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Uploaded</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Actions</th></tr></thead>
   <tbody>
-    ${books.sort((a, b) => b.uploaded.localeCompare(a.uploaded)).map(b => `
-      <tr>
-        ${coverCellHtml(b.name, b.hasCover)}
-        <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;font-size:.9rem"><strong>${escapeHtml(b.name)}</strong></td>
-        <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">${statusBadge(b.status)}</td>
-        <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.8rem">${escapeHtml(b.uploaded)}</td>
-        <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">
-          <button class="btn btn-outline" hx-post="/api/translate/${encodeURIComponent(b.name)}" hx-swap="outerHTML" hx-target="closest tr">Dịch lại</button>
-        </td>
-      </tr>`).join("")}
+    ${books.sort((a, b) => b.uploaded.localeCompare(a.uploaded)).map(renderAdminRow).join("")}
   </tbody>
 </table>`;
+}
+
+export function renderAdminRow(b: Book): string {
+  const badge = b.translating ? statusBadge("translating") : statusBadge(b.status);
+  return `<tr>
+    ${coverCellHtml(b.name, b.hasCover)}
+    <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;font-size:.9rem"><strong>${escapeHtml(b.name)}</strong></td>
+    <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">${badge}</td>
+    <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.8rem">${escapeHtml(b.uploaded)}</td>
+    <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">
+      ${actionsHtml(b)}
+    </td>
+  </tr>`;
+}
+
+function actionsHtml(b: Book): string {
+  if (b.translating) {
+    return `<button class="btn btn-outline" style="color:#dc2626;border-color:#dc2626"
+  hx-post="/api/stop/${encodeURIComponent(b.name)}"
+  hx-swap="outerHTML" hx-target="closest tr">Dừng</button>
+  <span class="btn btn-outline" style="opacity:.4;cursor:default;display:inline-block">Đang dịch</span>`;
+  }
+  if (b.status === "pending") {
+    return `<span style="color:#999;font-size:.8rem">Chờ xử lý</span>`;
+  }
+  return `<button class="btn btn-outline" hx-post="/api/translate/${encodeURIComponent(b.name)}" hx-swap="outerHTML" hx-target="closest tr">Dịch lại</button>`;
 }
 
 function coverCellHtml(name: string, hasCover?: boolean): string {

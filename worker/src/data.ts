@@ -94,12 +94,24 @@ export async function getAdminBooks(env: Env): Promise<Book[]> {
         coverObj = await env.LIBRARY.head(`translated/${name}/cover`);
       } catch {}
 
+      let translating = false;
+      if (metaObj) {
+        try {
+          const metaContent = await env.LIBRARY.get(`translated/${name}/metadata.json`);
+          if (metaContent) {
+            const parsed = JSON.parse(await metaContent.text());
+            translating = !!parsed.translating;
+          }
+        } catch {}
+      }
+
       books.push({
         name,
         uploaded: formatDate(obj.uploaded),
         status: metaObj ? "done" : "pending",
         chapters: 0,
         hasCover: !!coverObj,
+        translating,
       });
     }
     cursor = list.truncated ? list.cursor : undefined;

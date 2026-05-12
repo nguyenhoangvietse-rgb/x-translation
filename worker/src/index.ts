@@ -2,7 +2,7 @@ import type { Env } from "./types";
 import { escapeHtml, sanitizeName, statusBadge } from "./utils";
 import { getNovels, getMeta, getChapterText, getAdminBooks } from "./data";
 import { triggerWorkflow } from "./github";
-import { renderLibrary, renderNovel, renderChapter, renderAdminTable, ADMIN_PAGE } from "./views";
+import { renderLibrary, renderNovel, renderChapter, renderAdminTable, renderAdminRow, ADMIN_PAGE } from "./views";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -197,6 +197,37 @@ export default {
         return new Response("FAILED", { status: 500 });
       }
       return new Response("OK", { status: 200 });
+    }
+
+    // ── Stop translation route ───────────────────
+
+    const stopMatch = path.match(/^\/api\/stop\/(.+)$/);
+    if (request.method === "POST" && stopMatch) {
+      const name = decodeURIComponent(stopMatch[1]);
+      const toastMsg = `Đã yêu cầu dừng dịch '${escapeHtml(name)}'`;
+
+      await env.LIBRARY.put(`translated/${name}/_stop`, "");
+      try {
+        const obj = await env.LIBRARY.get(`translated/${name}/metadata.json`);
+        if (obj) {
+          const meta = JSON.parse(await obj.text());
+          meta.translating = false;
+          await env.LIBRARY.put(`translated/${name}/metadata.json`, JSON.stringify(meta, null, 2));
+        }
+      } catch {}
+
+      const books = await getAdminBooks(env);
+      const book = books.find(b => b.name === name);
+      if (!book) {
+        return new Response(`<tr><td colspan="5">Book removed.</td></tr>`, {
+          headers: { "Content-Type": "text/html" },
+        });
+      }
+
+      return new Response(
+        renderAdminRow(book).replace("<tr>", `<tr data-toast="${toastMsg}" data-toast-type="success">`),
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
+      );
     }
 
     // ── Cover image routes ──────────────────────
