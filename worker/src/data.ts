@@ -33,11 +33,17 @@ export async function getNovels(env: Env): Promise<Novel[]> {
           }
         }
 
+        let hasCover = false;
+        try {
+          hasCover = !!(await env.LIBRARY.head(`translated/${name}/cover`));
+        } catch {}
+
         novels.push({
           name,
           chapterCount: meta.chapters.filter(c => c.id > 0).length,
           hasIntro,
           displayName,
+          hasCover,
         });
       } catch {}
     }
@@ -82,11 +88,17 @@ export async function getAdminBooks(env: Env): Promise<Book[]> {
         metaObj = await env.LIBRARY.head(`translated/${name}/metadata.json`);
       } catch {}
 
+      let coverObj: R2Object | null = null;
+      try {
+        coverObj = await env.LIBRARY.head(`translated/${name}/cover`);
+      } catch {}
+
       books.push({
         name,
         uploaded: formatDate(obj.uploaded),
         status: metaObj ? "done" : "pending",
         chapters: 0,
+        hasCover: !!coverObj,
       });
     }
     cursor = list.truncated ? list.cursor : undefined;

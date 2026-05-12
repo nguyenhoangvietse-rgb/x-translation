@@ -10,6 +10,7 @@ export interface Book {
   uploaded: string;
   status: "done" | "pending";
   chapters: number;
+  hasCover?: boolean;
 }
 
 export interface NovelMeta {
@@ -24,6 +25,7 @@ export interface Novel {
   chapterCount: number;
   hasIntro: boolean;
   displayName?: string;
+  hasCover?: boolean;
 }
 
 export interface Chapter {

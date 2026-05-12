@@ -175,6 +175,66 @@ export default {
       );
     }
 
+    // ── Cover image routes ──────────────────────
+
+    const coverMatch = path.match(/^\/cover\/(.+)$/);
+    if (request.method === "GET" && coverMatch) {
+      const name = decodeURIComponent(coverMatch[1]);
+      try {
+        const obj = await env.LIBRARY.get(`translated/${name}/cover`);
+        if (!obj) return new Response("Not Found", { status: 404 });
+        const ct = obj.httpMetadata?.contentType || "image/png";
+        return new Response(obj.body, {
+          headers: {
+            "Content-Type": ct,
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      } catch {
+        return new Response("Not Found", { status: 404 });
+      }
+    }
+
+    const coverUploadMatch = path.match(/^\/api\/cover\/(.+)$/);
+    if (request.method === "POST" && coverUploadMatch) {
+      const name = decodeURIComponent(coverUploadMatch[1]);
+      const formData = await request.formData();
+      const file = formData.get("cover");
+
+      if (!file || !(file instanceof File)) {
+        return new Response(coverCell(name, false, "No file selected", "error"), { headers: { "Content-Type": "text/html" } });
+      }
+
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      if (!allowedTypes.includes(file.type)) {
+        return new Response(coverCell(name, false, "Only jpg/png/webp/gif allowed", "error"), { headers: { "Content-Type": "text/html" } });
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        return new Response(coverCell(name, false, "Cover exceeds 2 MB limit", "error"), { headers: { "Content-Type": "text/html" } });
+      }
+
+      await env.LIBRARY.put(`translated/${name}/cover`, file.stream(), {
+        httpMetadata: { contentType: file.type },
+      });
+
+      return new Response(coverCell(name, true, "Cover uploaded", "success"), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    }
+
     return new Response("Not Found", { status: 404 });
   },
 };
+
+function coverCell(name: string, hasCover: boolean, toastMsg: string, toastType: string): string {
+  const thumb = hasCover
+    ? `<img src="/cover/${encodeURIComponent(name)}" style="width:50px;height:70px;object-fit:cover;border-radius:4px;display:block" alt="">`
+    : `<div style="width:50px;height:70px;border:1px dashed #ccc;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:.7rem">+</div>`;
+
+  return `<td data-toast="${escapeHtml(toastMsg)}" data-toast-type="${toastType}" style="padding:.3rem .8rem;border-bottom:1px solid #f0f0f0;vertical-align:middle">
+    <form hx-post="/api/cover/${encodeURIComponent(name)}" hx-encoding="multipart/form-data" hx-swap="outerHTML" hx-target="closest td">
+      ${thumb}
+      <input type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif" style="position:absolute;opacity:0;width:0;height:0" onchange="this.form.requestSubmit()">
+      <button type="button" class="btn btn-ghost" style="font-size:.65rem;padding:.15rem .4rem;margin-top:.2rem" onclick="this.previousElementSibling.click()">${hasCover ? "Đổi" : "Thêm"}</button>
+    </form>
+  </td>`;
+}
