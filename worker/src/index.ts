@@ -29,12 +29,7 @@ export default {
         });
       }
 
-      let introContent: string | null = null;
-      if (meta.chapters.some(c => c.id === 0)) {
-        introContent = await getChapterText(env, name, 0);
-      }
-
-      return new Response(renderNovel(name, meta, introContent), {
+      return new Response(renderNovel(name, meta), {
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }

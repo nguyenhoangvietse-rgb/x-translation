@@ -43,7 +43,7 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(chapterTitle)} — ${escapeHtml(meta.translated_name || name)}</title>
+  <title>${escapeHtml(chapterTitle)} — ${escapeHtml(meta.story_name || name)}</title>
   ${SHARED_CSS}
   <style>
     body { max-width: 720px; margin: 0 auto; padding: 1rem 1rem 2rem; }
@@ -56,7 +56,7 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
   </style>
 </head>
 <body>
-  <a href="/read/${encodeURIComponent(name)}" class="back">← ${escapeHtml(meta.translated_name || name)}</a>
+  <a href="/read/${encodeURIComponent(name)}" class="back">← ${escapeHtml(meta.story_name || name)}</a>
 
   ${navBar(true)}
 

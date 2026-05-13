@@ -259,16 +259,35 @@ def process_book(file_key, content, start_time, chapter=None, batch_size=0):
                 "end": v["end"],
             })
         metadata["volumes"] = vi_volumes
+
+        intro_cn = info.get("intro", "")
+        if intro_cn:
+            intro_vi = translate_deepseek(f"Dịch giới thiệu truyện sang tiếng Việt:\n\n{intro_cn[:2000]}")
+            metadata["intro"] = intro_vi or intro_cn
     except Exception:
         pass
 
-    # Đánh dấu đang dịch
+    # Đánh dấu đang dịch — giữ nguyên chapters từ batch trước
     try:
-        s3.put_object(
-            Bucket=R2_BUCKET_NAME,
-            Key=f"translated/{story_name}/metadata.json",
-            Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
-        )
+        if existing_metadata:
+            existing_metadata["translating"] = True
+            existing_metadata["novel_name"] = metadata.get("novel_name", story_name)
+            existing_metadata["total_chapters"] = metadata.get("total_chapters", 0)
+            existing_metadata["author"] = metadata.get("author", "")
+            existing_metadata["volumes"] = metadata.get("volumes", [])
+            existing_metadata["intro"] = metadata.get("intro", "")
+            s3.put_object(
+                Bucket=R2_BUCKET_NAME,
+                Key=f"translated/{story_name}/metadata.json",
+                Body=json.dumps(existing_metadata, ensure_ascii=False, indent=2).encode('utf-8')
+            )
+            metadata = existing_metadata
+        else:
+            s3.put_object(
+                Bucket=R2_BUCKET_NAME,
+                Key=f"translated/{story_name}/metadata.json",
+                Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
+            )
     except Exception:
         pass
 
@@ -324,8 +343,11 @@ def process_book(file_key, content, start_time, chapter=None, batch_size=0):
             paras = translated_text.split('\n\n')
             translated_title = paras[0].strip() if paras else chap['title']
             if i == 0 and len(paras) > 1:
-                metadata["translated_name"] = paras[1].strip().split('\n')[0].strip()[:80]
-            metadata["chapters"].append({
+                metadata["story_name"] = paras[1].strip().split('\n')[0].strip()[:80]
+            if i == 0:
+                pass  # Skip chapter 0 from chapters list, use meta.intro instead
+            else:
+                metadata["chapters"].append({
                 "id": i,
                 "title": chap['title'],
                 "translated_title": translated_title,
@@ -362,7 +384,9 @@ def process_book(file_key, content, start_time, chapter=None, batch_size=0):
                 break
         else:
             print(f"Lỗi API — bỏ qua chương {i} của [{story_name}].")
-            if chapter_hash in existing_chapters:
+            if i == 0:
+                pass
+            elif chapter_hash in existing_chapters:
                 metadata["chapters"].append(existing_chapters[chapter_hash])
             else:
                 metadata["chapters"].append({
