@@ -141,6 +141,55 @@ def is_likely_untranslated(text):
     cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
     return (cjk / total) > 0.25
 
+def sanitize_filename(title):
+    return title.replace("\\", "-").replace("/", "-").replace(":", "-").replace("*", "-") \
+        .replace("?", "-").replace('"', "-").replace("<", "-").replace(">", "-").replace("|", "-") \
+        .replace(" ", "-")[:80]
+
+def pad_id(n):
+    return str(n).zfill(4)
+
+def chapter_output_path(story_name, chap, ch_id):
+    fname = sanitize_filename(chap['title'])
+    key = f"{pad_id(ch_id)}_{fname}.txt"
+    vol = chap.get("volume")
+    if vol:
+        return f"translated/{story_name}/{sanitize_filename(vol)}/{key}"
+    return f"translated/{story_name}/{key}"
+
+def validate_recent(metadata, chapters_list, story_name, count):
+    """Kiểm tra count chương cuối metadata, nếu CJK > 25% → re-dịch."""
+    if count <= 0:
+        return
+    recent = metadata["chapters"][-count:]
+    fixed = 0
+    for ch in recent:
+        try:
+            path = ch.get("path", "")
+            if not path:
+                continue
+            content_obj = s3.get_object(Bucket=R2_BUCKET_NAME, Key=path)
+            content = content_obj['Body'].read().decode('utf-8')
+            if is_likely_untranslated(content):
+                chap = chapters_list[ch["id"]]
+                combined = f"{chap['title']}\n\n{chap['content']}"
+                new = translate_deepseek(combined)
+                if new and not is_likely_untranslated(new):
+                    s3.put_object(Bucket=R2_BUCKET_NAME, Key=path, Body=new.encode('utf-8'))
+                    paras = new.split('\n\n')
+                    ch["translated_title"] = paras[0].strip() if paras else chap['title']
+                    fixed += 1
+                    print(f"  Validate: fix chương {ch['id']}")
+        except Exception:
+            pass
+    if fixed:
+        print(f"Validate: fixed {fixed}/{count} chương.")
+        s3.put_object(
+            Bucket=R2_BUCKET_NAME,
+            Key=f"translated/{story_name}/metadata.json",
+            Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
+        )
+
 def trigger_next_run(book_name):
     """Tự động lên lịch chạy lại workflow cho sách này."""
     token = os.getenv("GITHUB_TOKEN")
@@ -164,10 +213,11 @@ def trigger_next_run(book_name):
     except Exception as e:
         print(f"Lỗi khi tự lên lịch: {e}")
 
-def process_book(file_key, content, start_time, chapter=None):
+def process_book(file_key, content, start_time, chapter=None, batch_size=0):
     """Xử lý một cuốn sách: chia chương, dịch, lưu trữ.
-    chapter=None: dịch tất cả chương mới/cập nhật
-    chapter=N: chỉ dịch chapter N (force re-translate), giữ nguyên các chapter khác
+    chapter=None, batch_size=0: dịch tất cả chương mới/cập nhật (full run)
+    chapter=N: chỉ dịch chapter N (force re-translate)
+    batch_size>0: dịch tối đa N chương mới, rồi trigger batch tiếp
     Trả về (tiếp_tục, trạng_thái)."""
     story_name = file_key.replace('raw/', '').replace('.txt', '')
 
@@ -185,6 +235,32 @@ def process_book(file_key, content, start_time, chapter=None):
     chapters = split_chapters(content)
     print(f"[{story_name}] Tổng số chương: {len(chapters)}")
     metadata = {"story_name": story_name, "chapters": [], "raw_hash": raw_hash, "translating": True}
+
+    # Merge info.json data
+    try:
+        info_obj = s3.get_object(Bucket=R2_BUCKET_NAME, Key=f"processed/{story_name}/info.json")
+        info = json.loads(info_obj['Body'].read().decode('utf-8'))
+        metadata["novel_name"] = info.get("name", story_name)
+        metadata["total_chapters"] = info.get("total_chapters", 0)
+        metadata["intro"] = info.get("intro", "")
+
+        author_cn = info.get("author", "")
+        if author_cn:
+            author_vi = translate_deepseek(f"Dịch tên tác giả sang tiếng Việt (chỉ trả về tên): {author_cn}")
+            metadata["author"] = author_vi or author_cn
+
+        vi_volumes = []
+        for v in info.get("volumes", []):
+            title_vi = translate_deepseek(f"Dịch tên quyển truyện sang tiếng Việt: {v['title']}")
+            vi_volumes.append({
+                "title_cn": v["title"],
+                "title_vi": title_vi or v["title"],
+                "start": v["start"],
+                "end": v["end"],
+            })
+        metadata["volumes"] = vi_volumes
+    except Exception:
+        pass
 
     # Đánh dấu đang dịch
     try:
@@ -217,7 +293,6 @@ def process_book(file_key, content, start_time, chapter=None):
         force_translate = (chapter is not None and i == chapter)
 
         if chapter is not None and i != chapter:
-            # Single-chapter mode: preserve only already-translated chapters
             ex = existing_chapters.get(chapter_hash)
             if ex:
                 metadata["chapters"].append(ex)
@@ -228,7 +303,7 @@ def process_book(file_key, content, start_time, chapter=None):
             skipped += 1
             continue
 
-        output_key = f"translated/{story_name}/chapter_{i}.txt"
+        output_key = chapter_output_path(story_name, chap, i)
 
         print(f"Đang dịch [{story_name}] chương {i}: {chap['title']}")
         new_count += 1
@@ -279,6 +354,12 @@ def process_book(file_key, content, start_time, chapter=None):
                 sys.exit(0)
             except Exception:
                 pass
+
+            # Batch size limit
+            if batch_size and new_count >= batch_size:
+                print(f"Đạt batch limit {batch_size}, validate & trigger next.")
+                validate_recent(metadata, chapters, story_name, new_count)
+                break
         else:
             print(f"Lỗi API — bỏ qua chương {i} của [{story_name}].")
             if chapter_hash in existing_chapters:
@@ -292,6 +373,23 @@ def process_book(file_key, content, start_time, chapter=None):
                     "hash": f"PENDING_{chapter_hash}",
                     "volume": chap.get("volume", ""),
                 })
+
+    # After loop: validate if batch mode, trigger next if needed
+    if batch_size and new_count > 0:
+        validate_recent(metadata, chapters, story_name, new_count)
+        print(f"Hoàn tất batch [{story_name}] — {len(metadata['chapters'])} chương ({new_count} mới).")
+
+        # Check if more chapters remain
+        if chapter is None:
+            metadata["translating"] = True
+            s3.put_object(
+                Bucket=R2_BUCKET_NAME,
+                Key=f"translated/{story_name}/metadata.json",
+                Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
+            )
+            trigger_next_run(book_name=story_name)
+            return True, "batch"
+        return True, "completed"
 
     if new_count == 0:
         metadata["translating"] = False
@@ -320,6 +418,7 @@ def main():
     parser = argparse.ArgumentParser(description="Dịch một cuốn sách từ raw/ sang translated/")
     parser.add_argument("--book", required=True, help="Tên sách (không có đuôi .txt)")
     parser.add_argument("--chapter", type=int, default=None, help="Chỉ dịch chapter này (0-index)")
+    parser.add_argument("--batch-size", type=int, default=20, help="Số chương mới tối đa mỗi lần chạy")
     args = parser.parse_args()
 
     book_name = args.book
@@ -335,7 +434,7 @@ def main():
         sys.exit(1)
 
     print(f"Bắt đầu dịch [{book_name}]...")
-    ok, status = process_book(raw_key, content, start_time, chapter=args.chapter)
+    ok, status = process_book(raw_key, content, start_time, chapter=args.chapter, batch_size=args.batch_size)
     print(f"Kết quả: {status}")
 
     if not ok:

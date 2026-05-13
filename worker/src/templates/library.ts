@@ -16,6 +16,7 @@ export function renderLibrary(novels: Novel[]): string {
           <a href="/read/${encodeURIComponent(n.name)}" class="novel-card">
             ${coverHtml}
             <div class="novel-name" title="${escapeHtml(n.name)}">${escapeHtml(displayName)}</div>
+            ${n.author ? `<div style="font-size:.7rem;color:#aaa;text-align:center;margin-top:.1rem">${escapeHtml(n.author)}</div>` : ''}
             <div class="novel-meta">${n.chapterCount} chương${n.translating ? '<span style="color:#6366f1;font-size:.7rem"> · Đang dịch</span>' : ''}</div>
           </a>`;
         })

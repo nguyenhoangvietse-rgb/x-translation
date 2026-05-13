@@ -25,6 +25,7 @@ export async function triggerWorkflow(env: Env, bookName: string, chapterId?: nu
           client_payload: {
             book_name: bookName,
             ...(chapterId !== undefined && { chapter_id: String(chapterId) }),
+            batch_size: "20",
           },
         }),
       }

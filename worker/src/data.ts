@@ -45,6 +45,7 @@ export async function getNovels(env: Env): Promise<Novel[]> {
           displayName,
           hasCover,
           translating: meta.translating,
+          author: meta.author,
         });
       } catch {}
     }
@@ -64,9 +65,10 @@ export async function getMeta(env: Env, name: string): Promise<NovelMeta | null>
   }
 }
 
-export async function getChapterText(env: Env, name: string, id: number): Promise<string | null> {
+export async function getChapterText(env: Env, name: string, id: number, chPath?: string): Promise<string | null> {
   try {
-    const obj = await env.LIBRARY.get(`translated/${name}/chapter_${id}.txt`);
+    const key = chPath || `translated/${name}/chapter_${id}.txt`;
+    const obj = await env.LIBRARY.get(key);
     if (!obj) return null;
     return await obj.text();
   } catch {

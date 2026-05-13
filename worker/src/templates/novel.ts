@@ -9,6 +9,15 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
     ? introContent.split(/\n{2,}/)[1]?.trim().split(/\n/)[0]?.trim().slice(0, 80) || name
     : name;
 
+  const volMap = new Map<string, string>();
+  for (const v of meta.volumes || []) {
+    volMap.set(v.title_cn, v.title_vi);
+  }
+
+  const subtitle = meta.total_chapters
+    ? `${reading.length} / ${meta.total_chapters} chương`
+    : `${reading.length} chương`;
+
   const introHtml = intro && introContent
     ? (() => {
         const introParas = introContent.split(/\n{2,}/).map(p => p.trim()).filter(p => p.length > 0);
@@ -25,7 +34,7 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
       <li style="display:flex;align-items:center">
         <a href="/read/${encodeURIComponent(name)}/${c.id}" style="flex:1;display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;text-decoration:none;color:#333">
           <span class="ch-num">#${c.id}</span>
-          <span class="ch-title">${c.volume ? `${escapeHtml(c.volume)} · ` : ''}${escapeHtml(c.translated_title || c.title)}</span>
+          <span class="ch-title">${c.volume ? `${escapeHtml(volMap.get(c.volume) || c.volume)} · ` : ''}${escapeHtml(c.translated_title || c.title)}</span>
         </a>
         ${!meta.translating
           ? `<button onclick="fetch('/api/retranslate/${encodeURIComponent(name)}/${c.id}',{method:'POST'}).then(r=>r.ok&&(this.textContent='Đã gửi'))"
@@ -60,7 +69,8 @@ export function renderNovel(name: string, meta: NovelMeta, introContent: string 
 <body>
   <a href="/" class="back">← Thư viện</a>
   <h1>${escapeHtml(displayName)}</h1>
-  <p class="subtitle">${reading.length} chương</p>
+  ${meta.author ? `<p style="color:#888;font-size:.85rem;margin-bottom:.3rem">${escapeHtml(meta.author)}</p>` : ''}
+  <p class="subtitle">${subtitle}</p>
   ${meta.translating ? '<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.85rem;color:#4338ca">⚠ Truyện đang được dịch, một số chương có thể chưa được dịch xong.</div>' : ''}
   ${introHtml}
   <ol>${chapterList || `<div class="empty">Chưa có chương nào được dịch.</div>`}</ol>

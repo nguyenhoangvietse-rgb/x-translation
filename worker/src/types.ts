@@ -32,6 +32,11 @@ export interface ProcessedInfo {
 
 export interface NovelMeta {
   story_name: string;
+  novel_name?: string;
+  author?: string;
+  total_chapters?: number;
+  intro?: string;
+  volumes?: { title_cn: string; title_vi: string; start: number; end: number }[];
   raw_hash: string;
   translated_name?: string;
   translating?: boolean;
@@ -45,6 +50,7 @@ export interface Novel {
   displayName?: string;
   hasCover?: boolean;
   translating?: boolean;
+  author?: string;
 }
 
 export interface Chapter {

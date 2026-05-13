@@ -43,7 +43,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           CHAPTER_ID: ${{ github.event.client_payload.chapter_id || inputs.chapter_id || '' }}
+          BATCH_SIZE: ${{ github.event.client_payload.batch_size || '20' }}
         run: >
           python scripts/translate.py
           --book "${{ github.event.client_payload.book_name || inputs.book_name }}"
           ${CHAPTER_ID:+--chapter $CHAPTER_ID}
+          --batch-size ${BATCH_SIZE:-20}

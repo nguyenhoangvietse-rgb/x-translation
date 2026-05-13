@@ -59,7 +59,7 @@ export default {
         });
       }
 
-      const content = await getChapterText(env, name, id);
+      const content = await getChapterText(env, name, id, ch.path);
       if (content === null) {
         return new Response(`<div class="empty">Chương ${id} chưa được dịch.</div>`, {
           headers: { "Content-Type": "text/html; charset=utf-8" },
