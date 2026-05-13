@@ -171,12 +171,14 @@ def process_book(story_name, start_time, chapter=None, batch_size=0):
             })
         metadata["volumes"] = vi_volumes
 
+        name_cn = info.get("name", story_name)
+        name_vi = translate_deepseek(f"Dịch tên truyện sau sang tiếng Việt (chỉ trả về tên): {name_cn}")
+        metadata["story_name"] = name_vi or name_cn
+
         intro_cn = info.get("intro", "")
         if intro_cn:
             intro_vi = translate_deepseek(f"Dịch giới thiệu truyện sang tiếng Việt:\n\n{intro_cn[:2000]}")
             metadata["intro"] = intro_vi or intro_cn
-            name_vi = (intro_vi or intro_cn).split('\n')[0].strip()[:80]
-            metadata["story_name"] = name_vi or story_name
     except Exception:
         pass
 
@@ -253,13 +255,9 @@ def process_book(story_name, start_time, chapter=None, batch_size=0):
         force_translate = (chapter is not None and ch_id == chapter)
 
         if chapter is not None and ch_id != chapter:
-            ex = existing_chapters.get(chapter_hash)
-            if ex:
-                metadata["chapters"].append(ex)
             continue
 
         if not force_translate and chapter_hash in existing_chapters:
-            metadata["chapters"].append(existing_chapters[chapter_hash])
             skipped += 1
             continue
 
@@ -286,6 +284,20 @@ def process_book(story_name, start_time, chapter=None, batch_size=0):
             )
             paras = translated_text.split('\n\n')
             translated_title = paras[0].strip() if paras else ch_title
+
+            if is_likely_untranslated(translated_title):
+                print(f"Chương {ch_id}: tên chương còn tiếng Trung, dịch lại tên...")
+                retry_title = translate_deepseek(f"Dịch tên chương sau sang tiếng Việt (chỉ trả về tên): {ch_title}")
+                if retry_title and not is_likely_untranslated(retry_title):
+                    translated_title = retry_title
+                    paras[0] = retry_title
+                    translated_text = '\n\n'.join(paras)
+                    s3.put_object(
+                        Bucket=R2_BUCKET_NAME,
+                        Key=trans_path,
+                        Body=translated_text.encode('utf-8')
+                    )
+
             metadata["chapters"].append({
                 "id": ch_id,
                 "title": ch_title,
