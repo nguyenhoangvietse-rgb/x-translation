@@ -11,7 +11,7 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
   const chapterTitle = ch.translated_title || (paraList.length > 0 ? paraList[0] : ch.title);
   const bodyParas = paraList.slice(1);
 
-  const paragraphs = bodyParas.map(p => `<p>${escapeHtml(p)}</p>`).join("\n");
+  const paragraphs = bodyParas.map(p => `<p style="white-space: pre-wrap;">${escapeHtml(p)}</p>`).join("\n");
 
   const navOptions = reading
     .map(c => {
