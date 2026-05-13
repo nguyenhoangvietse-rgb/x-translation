@@ -27,8 +27,8 @@ s3 = boto3.client(
 deepseek = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
 
 SYSTEM_INSTRUCTION = (
-    "Bạn là một dịch giả chuyên nghiệp, am hiểu sâu sắc về thể loại truyện Tiên Hiệp, Huyền Huyễn và văn hóa cổ phong Trung Hoa. "
-    "Nhiệm vụ của bạn là dịch văn bản từ tiếng Trung sang tiếng Việt.\n\n"
+    "Bạn là một dịch giả văn học chuyên nghiệp Trung - Việt, am hiểu sâu sắc về thể loại truyện Tiên Hiệp, Huyền Huyễn và văn hóa cổ phong Trung Hoa. "
+    "Nhiệm vụ của bạn là dịch văn bản từ tiếng Trung sang tiếng Việt. Tuyệt đối không giữ nguyên tiếng Trung, không tóm tắt, không bỏ sót bất kỳ đoạn nào.\n\n"
     "MỤC TIÊU:\n"
     "1. Văn phong: Trang trọng, cổ kính, trôi chảy, giàu hình ảnh. Không dùng từ hiện đại, không để bị lỗi 'convert' (Hán Việt thô).\n"
     "2. Xưng hô: Linh hoạt theo vai vế (Bổn tọa, tại hạ, lão phu, tiểu tử, vãn bối, các hạ, sư phụ, đồ nhi...).\n"
@@ -298,6 +298,7 @@ def process_book(story_name, start_time, chapter=None, batch_size=0):
                         Body=translated_text.encode('utf-8')
                     )
 
+            metadata["chapters"] = [c for c in metadata["chapters"] if c["id"] != ch_id]
             metadata["chapters"].append({
                 "id": ch_id,
                 "title": ch_title,
@@ -334,6 +335,7 @@ def process_book(story_name, start_time, chapter=None, batch_size=0):
                 break
         else:
             print(f"Lỗi API — bỏ qua chương {ch_id} của [{story_name}].")
+            metadata["chapters"] = [c for c in metadata["chapters"] if c["id"] != ch_id]
             if chapter_hash in existing_chapters:
                 metadata["chapters"].append(existing_chapters[chapter_hash])
             else:

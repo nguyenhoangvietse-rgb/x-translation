@@ -27,6 +27,7 @@ export function renderNovel(name: string, meta: NovelMeta): string {
         <a href="/read/${encodeURIComponent(name)}/${c.id}" style="flex:1;display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;text-decoration:none;color:#333">
           <span class="ch-num">#${c.id}</span>
           <span class="ch-title">${c.volume ? `${escapeHtml(volMap.get(c.volume) || c.volume)} · ` : ''}${escapeHtml(c.translated_title || c.title)}</span>
+          ${(!c.path || c.hash?.startsWith('PENDING')) ? '<span style="color:#f59e0b;font-size:.65rem;margin-left:.4rem">(lỗi)</span>' : ''}
         </a>
         ${!meta.translating
           ? `<button onclick="fetch('/api/retranslate/${encodeURIComponent(name)}/${c.id}',{method:'POST'}).then(r=>r.ok&&(this.textContent='Đã gửi'))"
