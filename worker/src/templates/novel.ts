@@ -50,7 +50,7 @@ export function renderNovel(name: string, meta: NovelMeta): string {
     .intro-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem 1.2rem; margin-bottom: 1.5rem; }
     .intro-card h3 { font-size: 1rem; color: #1a1a2e; margin-bottom: .8rem; }
     .intro-content { font-family: Roboto, sans-serif; font-size: .95rem; line-height: 1.8; color: #444; }
-    .intro-content p { margin-bottom: .8em; }
+    .intro-content p { margin-bottom: .8em; white-space: pre-wrap; }
     ol { list-style: none; display: flex; flex-direction: column; gap: 1px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
     li a { transition: background .1s; }
     li a:hover { background: #fafaff; }

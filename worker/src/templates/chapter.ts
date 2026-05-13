@@ -11,7 +11,7 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
   const chapterTitle = ch.translated_title || (paraList.length > 0 ? paraList[0] : ch.title);
   const bodyParas = paraList.slice(1);
 
-  const paragraphs = bodyParas.map(p => `<p style="white-space: pre-wrap;">${escapeHtml(p)}</p>`).join("\n");
+  const paragraphs = bodyParas.map(p => `<p">${escapeHtml(p)}</p>`).join("\n");
 
   const navOptions = reading
     .map(c => {
@@ -51,7 +51,7 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
     .nav-bar { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
     h1 { font-size: 1.3rem; color: #1a1a2e; margin-bottom: 1.5rem; }
     .content { font-family: Roboto, sans-serif; font-size: 1.1rem; line-height: 1.9; color: #222; }
-    .content p { margin-bottom: 1em; }
+    .content p { margin-bottom: 1em; white-space: pre-wrap; }
     @media (max-width: 500px) { .nav-bar { flex-direction: column; gap: .5rem; } .nav-bar select { max-width: 100%; width: 100%; } }
   </style>
 </head>
