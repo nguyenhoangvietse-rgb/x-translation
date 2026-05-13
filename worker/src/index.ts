@@ -164,6 +164,7 @@ export default {
         );
       }
 
+      await env.LIBRARY.put(`translated/${bookName}/_translate_pending`, "1");
       const trigger = await triggerWorkflow(env, bookName);
       const books = await getAdminBooks(env);
       const book = books.find(b => b.name === bookName);

@@ -101,6 +101,11 @@ export async function getAdminBooks(env: Env): Promise<Book[]> {
           }
         } catch {}
       }
+      if (!translating) {
+        try {
+          translating = !!(await env.LIBRARY.head(`translated/${name}/_translate_pending`));
+        } catch {}
+      }
 
       let author = "";
       let totalChapters = 0;

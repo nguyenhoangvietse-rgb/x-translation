@@ -150,6 +150,29 @@ def process_book(story_name, start_time, chapter=None, batch_size=0):
     # Init metadata
     metadata = {"story_name": story_name, "chapters": [], "total_chapters": total, "translating": True}
 
+    # Delete pending marker + save metadata BEFORE any API calls
+    try:
+        s3.delete_object(Bucket=R2_BUCKET_NAME, Key=f"translated/{story_name}/_translate_pending")
+    except Exception:
+        pass
+
+    try:
+        if existing_metadata:
+            existing_metadata["translating"] = True
+            s3.put_object(
+                Bucket=R2_BUCKET_NAME,
+                Key=f"translated/{story_name}/metadata.json",
+                Body=json.dumps(existing_metadata, ensure_ascii=False, indent=2).encode('utf-8')
+            )
+        else:
+            s3.put_object(
+                Bucket=R2_BUCKET_NAME,
+                Key=f"translated/{story_name}/metadata.json",
+                Body=json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
+            )
+    except Exception:
+        pass
+
     # Merge info.json + translate author, volumes, intro
     try:
         metadata["novel_name"] = info.get("name", story_name)
@@ -298,15 +321,20 @@ def process_book(story_name, start_time, chapter=None, batch_size=0):
                         Body=translated_text.encode('utf-8')
                     )
 
-            metadata["chapters"] = [c for c in metadata["chapters"] if c["id"] != ch_id]
-            metadata["chapters"].append({
+            entry = {
                 "id": ch_id,
                 "title": ch_title,
                 "translated_title": translated_title,
                 "path": trans_path,
                 "hash": chapter_hash,
                 "volume": ch_volume or "",
-            })
+            }
+            for i, c in enumerate(metadata["chapters"]):
+                if c["id"] == ch_id:
+                    metadata["chapters"][i] = entry
+                    break
+            else:
+                metadata["chapters"].append(entry)
             s3.put_object(
                 Bucket=R2_BUCKET_NAME,
                 Key=f"translated/{story_name}/metadata.json",
@@ -335,18 +363,23 @@ def process_book(story_name, start_time, chapter=None, batch_size=0):
                 break
         else:
             print(f"Lỗi API — bỏ qua chương {ch_id} của [{story_name}].")
-            metadata["chapters"] = [c for c in metadata["chapters"] if c["id"] != ch_id]
             if chapter_hash in existing_chapters:
-                metadata["chapters"].append(existing_chapters[chapter_hash])
+                entry = existing_chapters[chapter_hash]
             else:
-                metadata["chapters"].append({
+                entry = {
                     "id": ch_id,
                     "title": ch_title,
                     "translated_title": ch_title,
                     "path": "",
                     "hash": f"PENDING_{chapter_hash}",
                     "volume": ch_volume or "",
-                })
+                }
+            for i, c in enumerate(metadata["chapters"]):
+                if c["id"] == ch_id:
+                    metadata["chapters"][i] = entry
+                    break
+            else:
+                metadata["chapters"].append(entry)
 
     # After loop: trigger next batch if needed
     if batch_size and new_count > 0:
