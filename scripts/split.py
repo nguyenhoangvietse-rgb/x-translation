@@ -124,6 +124,16 @@ def main():
     intro_entry = next((c for c in chapters if c["id"] == 0), None)
     intro_text = intro_entry["content"] if intro_entry else ""
 
+    # Strip title + author lines from intro
+    lines = intro_text.strip().split('\n')
+    while lines and (
+        lines[0].strip().startswith('《') or
+        '作者：' in lines[0] or '作者:' in lines[0] or
+        '内容简介' in lines[0] or '简介' in lines[0]
+    ):
+        lines.pop(0)
+    intro_text = '\n'.join(lines).strip()
+
     info = {
         "name": book_name,
         "status": "processing",
