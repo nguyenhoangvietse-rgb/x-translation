@@ -50,8 +50,8 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
     .back { font-size: .85rem; margin-bottom: 1rem; display: inline-block; }
     .nav-bar { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
     h1 { font-size: 1.3rem; color: #1a1a2e; margin-bottom: 1.5rem; }
-    .content { font-family: Roboto, sans-serif; font-size: 1.1rem; line-height: 1.9; color: #222; }
-    .content p { margin-bottom: 1em; white-space: pre-wrap; }
+    .content { font-family: Roboto, sans-serif; font-size: 1.1rem; line-height: 1.9; color: #222; white-space: pre-wrap; }
+    .content p { margin-bottom: 1em;}
     @media (max-width: 500px) { .nav-bar { flex-direction: column; gap: .5rem; } .nav-bar select { max-width: 100%; width: 100%; } }
   </style>
 </head>
