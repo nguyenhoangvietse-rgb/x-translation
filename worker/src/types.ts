@@ -8,10 +8,26 @@ export interface Env {
 export interface Book {
   name: string;
   uploaded: string;
-  status: "done" | "pending";
+  status: "done" | "raw" | "processing" | "processed";
   chapters: number;
   hasCover?: boolean;
   translating?: boolean;
+  processed?: boolean;
+  author?: string;
+  totalChapters?: number;
+  translatedChapters?: number;
+  splitCurrent?: number;
+  splitTotal?: number;
+}
+
+export interface ProcessedInfo {
+  name: string;
+  total_chapters: number;
+  char_count: number;
+  author: string;
+  intro: string;
+  volumes: { title: string; start: number; end: number }[];
+  chapters: { id: number; file: string; title: string; volume: string | null }[];
 }
 
 export interface NovelMeta {

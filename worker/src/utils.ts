@@ -17,7 +17,9 @@ export function sanitizeName(name: string): string {
 export function statusBadge(status: string): string {
   if (status === "done") return `<span class="badge" style="background:#d1fae5;color:#065f46;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Done</span>`;
   if (status === "translating") return `<span class="badge" style="background:#dbeafe;color:#1e40af;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Đang dịch...</span>`;
-  return `<span class="badge" style="background:#fef3c7;color:#92400e;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Pending</span>`;
+  if (status === "processing") return `<span class="badge" style="background:#ede9fe;color:#6d28d9;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Đang chia...</span>`;
+  if (status === "processed") return `<span class="badge" style="background:#ccfbf1;color:#0f766e;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Đã chia</span>`;
+  return `<span class="badge" style="background:#fef3c7;color:#92400e;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Raw</span>`;
 }
 
 export const SHARED_CSS = `

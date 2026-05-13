@@ -35,7 +35,7 @@ export async function getNovels(env: Env): Promise<Novel[]> {
 
         let hasCover = false;
         try {
-          hasCover = !!(await env.LIBRARY.head(`translated/${name}/cover`));
+          hasCover = !!(await env.LIBRARY.head(`processed/${name}/cover`));
         } catch {}
 
         novels.push({
@@ -89,29 +89,74 @@ export async function getAdminBooks(env: Env): Promise<Book[]> {
         metaObj = await env.LIBRARY.head(`translated/${name}/metadata.json`);
       } catch {}
 
+      let processedObj: R2Object | null = null;
+      try {
+        processedObj = await env.LIBRARY.head(`processed/${name}/info.json`);
+      } catch {}
+
       let coverObj: R2Object | null = null;
       try {
-        coverObj = await env.LIBRARY.head(`translated/${name}/cover`);
+        coverObj = await env.LIBRARY.head(`processed/${name}/cover`);
       } catch {}
 
       let translating = false;
+      let translatedChapters = 0;
       if (metaObj) {
         try {
           const metaContent = await env.LIBRARY.get(`translated/${name}/metadata.json`);
           if (metaContent) {
             const parsed = JSON.parse(await metaContent.text());
             translating = !!parsed.translating;
+            translatedChapters = (parsed.chapters || []).filter((c: any) => c.id > 0).length;
           }
         } catch {}
+      }
+
+      let author = "";
+      let totalChapters = 0;
+      let infoStatus = "";
+      let splitCurrent = 0;
+      let splitTotal = 0;
+      if (processedObj) {
+        try {
+          const infoObj = await env.LIBRARY.get(`processed/${name}/info.json`);
+          if (infoObj) {
+            const info = JSON.parse(await infoObj.text());
+            author = info.author || "";
+            totalChapters = info.total_chapters || 0;
+            infoStatus = info.status || "";
+            if (info.progress) {
+              splitCurrent = info.progress.current || 0;
+              splitTotal = info.progress.total || 0;
+            }
+          }
+        } catch {}
+      }
+
+      let status: Book["status"];
+      if (metaObj) {
+        status = "done";
+      } else if (infoStatus === "processing") {
+        status = "processing";
+      } else if (processedObj) {
+        status = "processed";
+      } else {
+        status = "raw";
       }
 
       books.push({
         name,
         uploaded: formatDate(obj.uploaded),
-        status: metaObj ? "done" : "pending",
+        status,
         chapters: 0,
         hasCover: !!coverObj,
         translating,
+        processed: !!processedObj,
+        author,
+        totalChapters,
+        translatedChapters,
+        splitCurrent,
+        splitTotal,
       });
     }
     cursor = list.truncated ? list.cursor : undefined;

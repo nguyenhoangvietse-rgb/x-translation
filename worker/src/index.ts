@@ -1,7 +1,7 @@
 import type { Env } from "./types";
 import { escapeHtml, sanitizeName, statusBadge } from "./utils";
 import { getNovels, getMeta, getChapterText, getAdminBooks } from "./data";
-import { triggerWorkflow } from "./github";
+import { triggerWorkflow, triggerSplit } from "./github";
 import { renderLibrary, renderNovel, renderChapter, renderAdminTable, renderAdminRow, ADMIN_PAGE } from "./views";
 
 export default {
@@ -119,18 +119,41 @@ export default {
         httpMetadata: { contentType: "text/plain; charset=utf-8" },
       });
 
-      const trigger = await triggerWorkflow(env, bookName);
       const books = await getAdminBooks(env);
 
-      const toastMsg = trigger.ok
-        ? `Uploaded "${bookName}" — translation started.`
-        : `Uploaded "${bookName}", but trigger failed: ${trigger.error}`;
-      const toastType = trigger.ok ? "success" : "error";
-
       return new Response(
-        `<div id="book-list" hx-get="/api/books" hx-trigger="every 30s" hx-swap="innerHTML" data-toast="${escapeHtml(toastMsg)}" data-toast-type="${toastType}">
+        `<div id="book-list" hx-get="/api/books" hx-trigger="every 30s" hx-swap="innerHTML" data-toast="Uploaded &quot;${escapeHtml(bookName)}&quot; — ready to split." data-toast-type="success">
   ${renderAdminTable(books)}
 </div>`,
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
+      );
+    }
+
+    // ── Process route (dispatch split) ───────────
+
+    const processMatch = path.match(/^\/api\/process\/(.+)$/);
+    if (request.method === "POST" && processMatch) {
+      const name = decodeURIComponent(processMatch[1]);
+
+      const rawObj = await env.LIBRARY.head(`raw/${name}.txt`);
+      if (!rawObj) {
+        return new Response(
+          `<tr data-toast="Book not found: ${escapeHtml(name)}" data-toast-type="error"><td colspan="7">Book not found.</td></tr>`,
+          { headers: { "Content-Type": "text/html" } }
+        );
+      }
+
+      const trigger = await triggerSplit(env, name);
+      if (!trigger.ok) {
+        return new Response(
+          `<tr data-toast="Failed to dispatch split: ${escapeHtml(trigger.error || "")}" data-toast-type="error"><td colspan="7">Dispatch failed.</td></tr>`,
+          { headers: { "Content-Type": "text/html" } }
+        );
+      }
+
+      return new Response(
+        renderAdminRow({ name, uploaded: "", status: "processing", chapters: 0, processed: true } as any)
+          .replace("<tr>", `<tr data-toast="Đã gửi yêu cầu chia chương '${escapeHtml(name)}'" data-toast-type="success">`),
         { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
@@ -141,7 +164,7 @@ export default {
       const rawObj = await env.LIBRARY.head(`raw/${bookName}.txt`);
       if (!rawObj) {
         return new Response(
-          `<tr data-toast="Book not found: ${escapeHtml(bookName)}" data-toast-type="error"><td colspan="5">Book not found.</td></tr>`,
+          `<tr data-toast="Book not found: ${escapeHtml(bookName)}" data-toast-type="error"><td colspan="7">Book not found.</td></tr>`,
           { headers: { "Content-Type": "text/html" } }
         );
       }
@@ -151,7 +174,7 @@ export default {
       const book = books.find(b => b.name === bookName);
 
       if (!book) {
-        return new Response(`<tr><td colspan="5">Book removed.</td></tr>`, {
+        return new Response(`<tr><td colspan="7">Book removed.</td></tr>`, {
           headers: { "Content-Type": "text/html" },
         });
       }
@@ -176,6 +199,8 @@ export default {
     </form>
   </td>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;font-size:.9rem"><strong>${escapeHtml(book.name)}</strong></td>
+  <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.85rem">${escapeHtml(book.author || "—")}</td>
+  <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.85rem">${book.totalChapters ? `${book.translatedChapters ?? 0} / ${book.totalChapters}` : "—"}</td>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">${badge}</td>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.8rem">${escapeHtml(book.uploaded)}</td>
   <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">
@@ -219,7 +244,7 @@ export default {
       const books = await getAdminBooks(env);
       const book = books.find(b => b.name === name);
       if (!book) {
-        return new Response(`<tr><td colspan="5">Book removed.</td></tr>`, {
+        return new Response(`<tr><td colspan="7">Book removed.</td></tr>`, {
           headers: { "Content-Type": "text/html" },
         });
       }
@@ -236,7 +261,7 @@ export default {
     if (request.method === "GET" && coverMatch) {
       const name = decodeURIComponent(coverMatch[1]);
       try {
-        const obj = await env.LIBRARY.get(`translated/${name}/cover`);
+        const obj = await env.LIBRARY.get(`processed/${name}/cover`);
         if (!obj) return new Response("Not Found", { status: 404 });
         const ct = obj.httpMetadata?.contentType || "image/png";
         return new Response(obj.body, {
@@ -269,7 +294,7 @@ export default {
         return new Response(coverCell(name, false, "Cover exceeds 2 MB limit", "error"), { headers: { "Content-Type": "text/html" } });
       }
 
-      await env.LIBRARY.put(`translated/${name}/cover`, file.stream(), {
+      await env.LIBRARY.put(`processed/${name}/cover`, file.stream(), {
         httpMetadata: { contentType: file.type },
       });
 

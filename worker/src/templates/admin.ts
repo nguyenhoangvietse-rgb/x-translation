@@ -7,7 +7,7 @@ export function renderAdminTable(books: Book[]): string {
   }
   return `
 <table style="width:100%;border-collapse:collapse">
-  <thead><tr><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Cover</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Name</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Status</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Uploaded</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Actions</th></tr></thead>
+  <thead><tr><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Cover</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Name</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Author</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Chương</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Status</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Uploaded</th><th style="text-align:left;font-weight:600;color:#666;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .8rem;border-bottom:2px solid #eee">Actions</th></tr></thead>
   <tbody>
     ${books.sort((a, b) => b.uploaded.localeCompare(a.uploaded)).map(renderAdminRow).join("")}
   </tbody>
@@ -16,9 +16,19 @@ export function renderAdminTable(books: Book[]): string {
 
 export function renderAdminRow(b: Book): string {
   const badge = b.translating ? statusBadge("translating") : statusBadge(b.status);
+
+  let chapterDisplay = "—";
+  if (b.status === "processing") {
+    chapterDisplay = `${b.splitCurrent ?? 0} / ${b.splitTotal || "?"}`;
+  } else if (b.totalChapters) {
+    chapterDisplay = `${b.translatedChapters ?? 0} / ${b.totalChapters}`;
+  }
+
   return `<tr>
     ${coverCellHtml(b.name, b.hasCover)}
     <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;font-size:.9rem"><strong>${escapeHtml(b.name)}</strong></td>
+    <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.85rem">${escapeHtml(b.author || "—")}</td>
+    <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.85rem">${chapterDisplay}</td>
     <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">${badge}</td>
     <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0;color:#888;font-size:.8rem">${escapeHtml(b.uploaded)}</td>
     <td style="padding:.7rem .8rem;border-bottom:1px solid #f0f0f0">
@@ -34,7 +44,21 @@ function actionsHtml(b: Book): string {
   hx-swap="outerHTML" hx-target="closest tr">Dừng</button>
   <span class="btn btn-outline" style="opacity:.4;cursor:default;display:inline-block">Đang dịch</span>`;
   }
-  if (b.status === "pending") {
+  if (b.status === "processing") {
+    return `<span class="btn btn-outline" style="opacity:.4;cursor:default;display:inline-block">Đang chia...</span>`;
+  }
+  if (b.status === "raw") {
+    return `<div style="display:flex;flex-direction:column;gap:.2rem">
+      <button class="btn btn-outline"
+        hx-post="/api/process/${encodeURIComponent(b.name)}"
+        hx-swap="outerHTML" hx-target="closest tr"
+        hx-indicator="#ind-split" hx-disabled-elt="this">Chia chương</button>
+      <div class="progress" id="ind-split" style="margin-top:0">
+        <div class="bar"><div class="bar-fill"></div></div>
+      </div>
+    </div>`;
+  }
+  if (b.status === "processed") {
     return `<button class="btn btn-outline" hx-post="/api/translate/${encodeURIComponent(b.name)}" hx-swap="outerHTML" hx-target="closest tr">Dịch</button>`;
   }
   return `<button class="btn btn-outline" hx-post="/api/translate/${encodeURIComponent(b.name)}" hx-swap="outerHTML" hx-target="closest tr">Dịch lại</button>`;
@@ -63,7 +87,7 @@ export const ADMIN_PAGE = `<!DOCTYPE html>
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
   ${SHARED_CSS}
   <style>
-    body { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
+    body { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; }
     h1 { font-size: 1.4rem; margin-bottom: 1.5rem; color: #1a1a2e; }
     .card { background: #fff; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
     .card h2 { font-size: 1rem; margin-bottom: 1rem; color: #444; }
@@ -92,7 +116,7 @@ export const ADMIN_PAGE = `<!DOCTYPE html>
       </div>
       <div class="progress" id="upload-progress">
         <div class="bar"><div class="bar-fill"></div></div>
-        <p style="font-size:.8rem;color:#888">Uploading and dispatching translation...</p>
+        <p style="font-size:.8rem;color:#888">Uploading and saving...</p>
       </div>
     </form>
   </div>

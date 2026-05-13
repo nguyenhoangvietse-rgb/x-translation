@@ -1,6 +1,4 @@
-import type { Env } from "./types";
-
-export async function triggerWorkflow(env: Env, bookName: string, chapterId?: number): Promise<{ ok: boolean; error?: string }> {
+export async function triggerSplit(env: Env, bookName: string): Promise<{ ok: boolean; error?: string }> {
   const token = env.GITHUB_TOKEN;
   const owner = env.OWNER;
   const repo = env.REPO;
@@ -21,11 +19,8 @@ export async function triggerWorkflow(env: Env, bookName: string, chapterId?: nu
           "User-Agent": "translation-lib-worker",
         },
         body: JSON.stringify({
-          event_type: "new_book_uploaded",
-          client_payload: {
-            book_name: bookName,
-            ...(chapterId !== undefined && { chapter_id: String(chapterId) }),
-          },
+          event_type: "split_chapters",
+          client_payload: { book_name: bookName },
         }),
       }
     );
