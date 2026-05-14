@@ -1,5 +1,5 @@
 import type { Chapter, NovelMeta } from "../types";
-import { escapeHtml, SHARED_CSS } from "../utils";
+import { escapeHtml, stripMarkdown, SHARED_CSS } from "../utils";
 
 export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, content: string): string {
   const reading = meta.chapters.filter(c => c.id > 0);
@@ -8,14 +8,14 @@ export function renderChapter(name: string, ch: Chapter, meta: NovelMeta, conten
   const next = currentIdx < reading.length - 1 ? reading[currentIdx + 1] : null;
 
   const paraList = content.split(/\n{2,}/).map(p => p.trim()).filter(p => p.length > 0);
-  const chapterTitle = ch.translated_title || (paraList.length > 0 ? paraList[0] : ch.title);
+  const chapterTitle = stripMarkdown(ch.translated_title || (paraList.length > 0 ? paraList[0] : ch.title));
   const bodyParas = paraList.slice(1);
 
   const paragraphs = bodyParas.map(p => `<p">${escapeHtml(p)}</p>`).join("\n");
 
   const navOptions = reading
     .map(c => {
-      const label = `${escapeHtml(c.translated_title || c.title)}`;
+      const label = `${escapeHtml(stripMarkdown(c.translated_title || c.title))}`;
       if (c.id === ch.id) {
         return `<option value="${c.id}" selected>${label}</option>`;
       }

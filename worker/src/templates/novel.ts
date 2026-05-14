@@ -1,5 +1,5 @@
 import type { NovelMeta } from "../types";
-import { escapeHtml, SHARED_CSS } from "../utils";
+import { escapeHtml, stripMarkdown, SHARED_CSS } from "../utils";
 
 export function renderNovel(name: string, meta: NovelMeta): string {
   const reading = meta.chapters.filter(c => c.id > 0);
@@ -60,7 +60,7 @@ export function renderNovel(name: string, meta: NovelMeta): string {
         return `<div class="ch-row" data-idx="${item.idx}" style="display:none">
           <a href="/read/${encodeURIComponent(name)}/${c.id}" style="flex:1;display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;text-decoration:none;color:#333">
             <span class="ch-num">#${c.id}</span>
-            <span class="ch-title">${escapeHtml(c.translated_title || c.title)}</span>
+            <span class="ch-title">${escapeHtml(stripMarkdown(c.translated_title || c.title))}</span>
             ${(!c.path || c.hash?.startsWith('PENDING')) ? '<span style="color:#f59e0b;font-size:.65rem;margin-left:.4rem">(lỗi)</span>' : ''}
           </a>
           ${!meta.translating
@@ -69,7 +69,7 @@ export function renderNovel(name: string, meta: NovelMeta): string {
             : ''}
         </div>`;
       } else {
-        return `<div class="vol-header" data-idx="${item.idx}" style="display:none">${escapeHtml(item.label)}</div>`;
+        return `<div class="vol-header" data-idx="${item.idx}" style="display:none">${escapeHtml(stripMarkdown(item.label))}</div>`;
       }
     })
     .join("");
