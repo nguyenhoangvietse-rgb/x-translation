@@ -1,8 +1,6 @@
 import type { NovelMeta } from "../types";
 import { escapeHtml, SHARED_CSS } from "../utils";
 
-const PAGE_SIZE = 50;
-
 export function renderNovel(name: string, meta: NovelMeta): string {
   const reading = meta.chapters.filter(c => c.id > 0);
 
@@ -39,30 +37,27 @@ export function renderNovel(name: string, meta: NovelMeta): string {
   }
 
   // ── Build flat list with volume headers ──
-  type FlatItem = { type: "vol"; label: string; page: number } | { type: "ch"; id: number; page: number };
+  type FlatItem = { type: "vol"; label: string; idx: number } | { type: "ch"; id: number; idx: number };
   const flat: FlatItem[] = [];
-  let count = 0;
+  let idx = 0;
 
   for (const g of groups) {
     if (g.chapters.length === 0) continue;
-    const firstPage = Math.floor(count / PAGE_SIZE) + 1;
     if (g.volLabel) {
-      flat.push({ type: "vol", label: g.volLabel, page: firstPage });
+      flat.push({ type: "vol", label: g.volLabel, idx });
     }
     for (const c of g.chapters) {
-      const page = Math.floor(count / PAGE_SIZE) + 1;
-      flat.push({ type: "ch", id: c.id, page });
-      count++;
+      flat.push({ type: "ch", id: c.id, idx });
+      idx++;
     }
   }
-  const totalPages = count > 0 ? Math.floor((count - 1) / PAGE_SIZE) + 1 : 0;
 
   // ── Render all items ──
   const itemsHtml = flat
     .map((item) => {
       if (item.type === "ch") {
         const c = reading.find(x => x.id === item.id)!;
-        return `<div class="ch-row" data-page="${item.page}" style="display:none">
+        return `<div class="ch-row" data-idx="${item.idx}" style="display:none">
           <a href="/read/${encodeURIComponent(name)}/${c.id}" style="flex:1;display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;text-decoration:none;color:#333">
             <span class="ch-num">#${c.id}</span>
             <span class="ch-title">${escapeHtml(c.translated_title || c.title)}</span>
@@ -74,14 +69,10 @@ export function renderNovel(name: string, meta: NovelMeta): string {
             : ''}
         </div>`;
       } else {
-        return `<div class="vol-header" data-page="${item.page}" style="display:none">${escapeHtml(item.label)}</div>`;
+        return `<div class="vol-header" data-idx="${item.idx}" style="display:none">${escapeHtml(item.label)}</div>`;
       }
     })
     .join("");
-
-  const paginationHtml = totalPages > 1
-    ? `<div class="pagination" id="pagination"></div>`
-    : "";
 
   return `<!DOCTYPE html>
 <html lang="vi">
@@ -103,10 +94,12 @@ export function renderNovel(name: string, meta: NovelMeta): string {
     .ch-row:hover { background: #fafaff; }
     .ch-num { font-size: .75rem; color: #888; min-width: 2.5rem; }
     .ch-title { font-size: .9rem; }
-    .pagination { display: flex; gap: .35rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+    .pagination-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
+    .pagination { display: flex; gap: .35rem; flex-wrap: wrap; }
     .pagination button, .pagination .pg-num { padding: .35rem .65rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; cursor: pointer; background: #fff; color: #333; min-width: 2rem; text-align: center; }
     .pagination .active { background: #6366f1; color: #fff; border-color: #6366f1; cursor: default; }
     .pagination .ellipsis { padding: .35rem .4rem; border: none; cursor: default; background: transparent; color: #888; }
+    #page-size { padding: .35rem .5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .8rem; background: #fff; color: #333; }
     #chapter-list { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: .1rem 0; }
   </style>
 </head>
@@ -119,41 +112,67 @@ export function renderNovel(name: string, meta: NovelMeta): string {
   ${introHtml}
 
   <div id="chapter-list">${itemsHtml}</div>
-  ${paginationHtml}
+
+  <div class="pagination-toolbar">
+    <div class="pagination" id="pagination"></div>
+    <select id="page-size" onchange="changePageSize(parseInt(this.value))">
+      <option value="20">20 / trang</option>
+      <option value="50">50 / trang</option>
+      <option value="100">100 / trang</option>
+      <option value="200">200 / trang</option>
+    </select>
+  </div>
 
   <script>
-    var TOTAL_PAGES = ${totalPages};
-    var ALL_ITEMS = document.querySelectorAll('#chapter-list > *[data-page]');
+    var ALL_ITEMS = document.querySelectorAll('#chapter-list > *[data-idx]');
+    var TOTAL_ITEMS = ${reading.length};
+    var pageSize = 20;
+    var currentPage = 1;
+    var totalPages = 1;
+
+    function getPage(idx) {
+      return Math.floor(idx / pageSize) + 1;
+    }
 
     function showPage(n) {
-      if (n < 1 || n > TOTAL_PAGES) return;
+      if (n < 1 || n > totalPages) return;
+      currentPage = n;
       for (var i = 0; i < ALL_ITEMS.length; i++) {
-        var p = parseInt(ALL_ITEMS[i].getAttribute('data-page'));
+        var idx = parseInt(ALL_ITEMS[i].getAttribute('data-idx'));
+        var p = getPage(idx);
         ALL_ITEMS[i].style.display = p === n ? '' : 'none';
       }
-      renderPagination(n);
+      renderPagination();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function renderPagination(cur) {
+    function changePageSize(n) {
+      pageSize = n;
+      totalPages = Math.max(1, Math.ceil(TOTAL_ITEMS / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      showPage(currentPage);
+    }
+
+    function renderPagination() {
       var pg = document.getElementById('pagination');
       if (!pg) return;
+      if (totalPages <= 1) { pg.innerHTML = ''; return; }
       var html = '';
-      html += '<button onclick="showPage(' + (cur-1) + ')"' + (cur <= 1 ? ' disabled style="opacity:.4;cursor:default"' : '') + '>⟨</button>';
-      for (var p = 1; p <= TOTAL_PAGES; p++) {
-        if (TOTAL_PAGES > 8) {
-          if (p !== 1 && p !== TOTAL_PAGES && Math.abs(p - cur) > 2) {
-            if (p === 2 || p === TOTAL_PAGES - 1) html += '<span class="ellipsis">…</span>';
+      html += '<button onclick="showPage(currentPage-1)"' + (currentPage <= 1 ? ' disabled style="opacity:.4;cursor:default"' : '') + '>⟨</button>';
+      for (var p = 1; p <= totalPages; p++) {
+        if (totalPages > 8) {
+          if (p !== 1 && p !== totalPages && Math.abs(p - currentPage) > 2) {
+            if (p === 2 || p === totalPages - 1) html += '<span class="ellipsis">…</span>';
             continue;
           }
         }
-        html += '<span class="pg-num' + (p === cur ? ' active' : '') + '" onclick="showPage(' + p + ')">' + p + '</span>';
+        html += '<span class="pg-num' + (p === currentPage ? ' active' : '') + '" onclick="showPage(' + p + ')">' + p + '</span>';
       }
-      html += '<button onclick="showPage(' + (cur+1) + ')"' + (cur >= TOTAL_PAGES ? ' disabled style="opacity:.4;cursor:default"' : '') + '>⟩</button>';
+      html += '<button onclick="showPage(currentPage+1)"' + (currentPage >= totalPages ? ' disabled style="opacity:.4;cursor:default"' : '') + '>⟩</button>';
       pg.innerHTML = html;
     }
 
-    showPage(1);
+    changePageSize(20);
   </script>
 </body>
 </html>`;
