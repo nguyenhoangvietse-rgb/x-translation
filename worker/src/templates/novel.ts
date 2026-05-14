@@ -89,7 +89,7 @@ export function renderNovel(name: string, meta: NovelMeta): string {
     .intro-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem 1.2rem; margin-bottom: 1.5rem; }
     .intro-content { font-family: Roboto, sans-serif; font-size: .95rem; line-height: 1.8; color: #444; }
     .intro-content p { margin-bottom: .8em; white-space: pre-wrap; }
-    .vol-header { font-size: 1rem; color: #4f46e5; padding: .6rem 0 .3rem; border-bottom: 1px solid #e0e0e0; margin: 1.2rem 0 .3rem; font-weight: 600; }
+    .vol-header { font-size: 1rem; color: #4f46e5; padding: .6rem .3rem; border-bottom: 1px solid #e0e0e0; margin: 1.2rem 0 .3rem; font-weight: 600; }
     .ch-row { display: flex; align-items: center; transition: background .1s; }
     .ch-row:hover { background: #fafaff; }
     .ch-num { font-size: .75rem; color: #888; min-width: 2.5rem; }
