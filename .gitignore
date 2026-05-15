@@ -5,6 +5,7 @@ worker/node_modules/
 # Cloudflare Wrangler
 .wrangler/
 worker/.wrangler/
+worker/.dev.vars
 
 # Python
 __pycache__/
