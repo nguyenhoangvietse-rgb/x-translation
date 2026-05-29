@@ -1,5 +1,9 @@
 export function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export function formatDate(d: Date): string {
@@ -27,11 +31,32 @@ export function sanitizeName(name: string): string {
 }
 
 export function statusBadge(status: string): string {
-  if (status === "done") return `<span class="badge" style="background:#d1fae5;color:#065f46;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Done</span>`;
-  if (status === "translating") return `<span class="badge" style="background:#dbeafe;color:#1e40af;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Đang dịch...</span>`;
-  if (status === "processing") return `<span class="badge" style="background:#ede9fe;color:#6d28d9;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Đang chia...</span>`;
-  if (status === "processed") return `<span class="badge" style="background:#ccfbf1;color:#0f766e;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Đã chia</span>`;
+  if (status === "done")
+    return `<span class="badge" style="background:#d1fae5;color:#065f46;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Done</span>`;
+  if (status === "translating")
+    return `<span class="badge" style="background:#dbeafe;color:#1e40af;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Đang dịch...</span>`;
+  if (status === "processing")
+    return `<span class="badge" style="background:#ede9fe;color:#6d28d9;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Đang chia...</span>`;
+  if (status === "processed")
+    return `<span class="badge" style="background:#ccfbf1;color:#0f766e;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Đã chia</span>`;
   return `<span class="badge" style="background:#fef3c7;color:#92400e;padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600">Raw</span>`;
+}
+
+export const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBvcnM9Nz1umt0aa7A2DQ9OQrQrEQ2jijU",
+  authDomain: "x-translate-5e6ee.firebaseapp.com",
+  projectId: "x-translate-5e6ee",
+  storageBucket: "x-translate-5e6ee.firebasestorage.app",
+  messagingSenderId: "1041577126788",
+  appId: "1:1041577126788:web:28f3d227491e86c3ff8bd1",
+};
+
+export function getUid(request: Request): string {
+  const header = request.headers.get("X-Reader-UID") || "";
+  if (header && /^[a-zA-Z0-9]{20,}$/.test(header)) return header;
+  const cookie = request.headers.get("Cookie") || "";
+  const match = cookie.match(/reader_uid=([a-zA-Z0-9]+)/);
+  return match ? match[1] : "";
 }
 
 export const SHARED_CSS = `
@@ -55,3 +80,35 @@ export const SHARED_CSS = `
   .toast-success { background: #059669; }
   .toast-error { background: #dc2626; }
 </style>`;
+
+export const FIREBASE_HEAD = `
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+<script>
+  firebase.initializeApp(${JSON.stringify(FIREBASE_CONFIG)});
+  var auth = firebase.auth();
+  var provider = new firebase.auth.GoogleAuthProvider();
+
+  function updateAuthUI(user) {
+    var btn = document.getElementById('auth-btn');
+    if (!btn) return;
+    if (user) {
+      btn.innerHTML = '\\u{1F464} ' + (user.displayName || user.email || 'Reader').split(' ')[0] + ' <span style="font-size:.7rem;color:#999">| Đăng xuất</span>';
+      btn.onclick = function() { auth.signOut(); };
+      btn.className = 'btn btn-ghost';
+      document.cookie = 'reader_uid=' + user.uid + '; Path=/; SameSite=Lax; Max-Age=' + (365*24*3600) + '; Secure';
+    } else {
+      btn.innerHTML = '\\u{1F511} Đăng nhập';
+      btn.onclick = function() {
+        auth.signInWithPopup(provider).then(function() {
+          location.reload();
+        }).catch(function(e) { console.error(e); });
+      };
+      btn.className = 'btn btn-outline';
+    }
+  }
+
+  auth.onAuthStateChanged(function(user) {
+    updateAuthUI(user);
+  });
+</script>`;

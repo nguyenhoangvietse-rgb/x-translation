@@ -1,5 +1,5 @@
 import type { Chapter, NovelMeta } from "../types";
-import { escapeHtml, stripMarkdown, SHARED_CSS } from "../utils";
+import { escapeHtml, stripMarkdown, SHARED_CSS, FIREBASE_HEAD } from "../utils";
 
 export function renderChapter(
   name: string,
@@ -61,6 +61,7 @@ export function renderChapter(
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(chapterTitle)} — ${escapeHtml(meta.story_name || name)}</title>
   ${SHARED_CSS}
+  ${FIREBASE_HEAD}
   <style>
     body { max-width: 720px; margin: 0 auto; padding: 1rem 1rem 2rem; }
     .back { font-size: .85rem; margin-bottom: 1rem; display: inline-block; }
@@ -76,10 +77,13 @@ export function renderChapter(
     .toast-ch.ok { background: #059669; }
     .toast-ch.err { background: #dc2626; }
     @media (max-width: 500px) { .nav-bar { flex-direction: column; gap: .5rem; } .nav-bar select { max-width: 100%; width: 100%; } }
+    .reader-footer { max-width: 720px; margin: 1.5rem auto 0; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: .5rem; flex-wrap: wrap; border-top: 1px solid #e5e7eb; }
+    .reader-footer code { font-family: monospace; background: #f3f4f6; padding: .15rem .4rem; border-radius: 3px; font-size: .75rem; }
   </style>
 </head>
 <body>
   <a href="/read/${encodeURIComponent(name)}" class="back">← ${escapeHtml(meta.story_name || name)}</a>
+  <button id="auth-btn" class="btn btn-outline" style="float:right;margin-top:-.2rem;font-size:.75rem">🔑 Đăng nhập</button>
 
   ${navBar(true)}
 
@@ -98,7 +102,18 @@ export function renderChapter(
   ${navBar(false)}
   <div id="toast-ch" class="toast-ch"></div>
   <script>
-  (function() {
+  // ── Save reading progress ──
+  var uid = document.cookie.match(/reader_uid=([a-zA-Z0-9]+)/);
+  var uidHeader = uid ? uid[1] : '';
+  if (uidHeader) {
+    fetch('/api/progress/${encodeURIComponent(name)}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Reader-UID': uidHeader },
+      body: JSON.stringify({ chapter: ${ch.id} })
+    });
+  }
+
+  // ── Retranslate button ──
     var toastCh = document.getElementById('toast-ch');
     var timerCh;
     function show(msg, type) {
@@ -122,7 +137,6 @@ export function renderChapter(
           .catch(function() { btnCh.disabled = false; btnCh.textContent = '↻ Dịch lại chương này'; show('Lỗi kết nối', 'err'); });
       });
     }
-  })();
   </script>
 </body>
 </html>`;

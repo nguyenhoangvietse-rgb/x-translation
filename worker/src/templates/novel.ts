@@ -1,7 +1,11 @@
 import type { NovelMeta } from "../types";
-import { escapeHtml, stripMarkdown, SHARED_CSS } from "../utils";
+import { escapeHtml, stripMarkdown, SHARED_CSS, FIREBASE_HEAD } from "../utils";
 
-export function renderNovel(name: string, meta: NovelMeta): string {
+export function renderNovel(
+  name: string,
+  meta: NovelMeta,
+  lastRead: number = 0,
+): string {
   const reading = meta.chapters.filter((c) => c.id > 0);
 
   const displayName = meta.story_name || name;
@@ -60,9 +64,10 @@ export function renderNovel(name: string, meta: NovelMeta): string {
       if (item.type === "ch") {
         const c = reading.find((x) => x.id === item.id)!;
         const hasError = !c.path || c.hash?.startsWith("PENDING");
-        return `<div class="ch-row" data-idx="${item.idx}" style="display:none">
+        const isRead = lastRead > 0 && c.id <= lastRead;
+        return `<div class="ch-row${isRead ? " ch-read" : ""}" data-idx="${item.idx}" style="display:none">
           <a href="/read/${encodeURIComponent(name)}/${c.id}" style="flex:1;display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;text-decoration:none;color:#333">
-            <span class="ch-num">#${c.id}</span>
+            <span class="ch-num">${isRead ? "✓" : `#${c.id}`}</span>
             <span class="ch-title">${escapeHtml(stripMarkdown(c.translated_title || c.title))}</span>
             ${hasError ? '<span class="ch-err" title="Chương này chưa được dịch hoặc gặp lỗi">⚠ lỗi</span>' : ""}
           </a>
@@ -85,6 +90,7 @@ export function renderNovel(name: string, meta: NovelMeta): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(displayName)} — Chapters</title>
   ${SHARED_CSS}
+  ${FIREBASE_HEAD}
   <style>
     body { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
     .back { font-size: .85rem; margin-bottom: 1.5rem; display: inline-block; }
@@ -96,6 +102,8 @@ export function renderNovel(name: string, meta: NovelMeta): string {
     .vol-header { font-size: 1rem; color: #4f46e5; padding: .6rem .3rem; border-bottom: 1px solid #e0e0e0; margin: 1.2rem 0 .3rem; font-weight: 600; }
     .ch-row { display: flex; align-items: center; transition: background .1s; }
     .ch-row:hover { background: #fafaff; }
+    .ch-row.ch-read { opacity: .65; }
+    .ch-row.ch-read:hover { opacity: 1; }
     .ch-num { font-size: .75rem; color: #888; min-width: 2.5rem; }
     .ch-title { font-size: .9rem; }
     .ch-err { color: #d97706; font-size: .7rem; margin-left: .4rem; cursor: help; }
@@ -108,6 +116,9 @@ export function renderNovel(name: string, meta: NovelMeta): string {
     .toast-novel.show { opacity: 1; }
     .toast-novel.ok { background: #059669; }
     .toast-novel.err { background: #dc2626; }
+    .continue-banner { text-align: center; margin-bottom: 1rem; }
+    .reader-footer { max-width: 720px; margin: 2rem auto 0; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: .5rem; flex-wrap: wrap; border-top: 1px solid #e5e7eb; }
+    .reader-footer code { font-family: monospace; background: #f3f4f6; padding: .15rem .4rem; border-radius: 3px; font-size: .75rem; }
     .pagination-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
     .pagination { display: flex; gap: .35rem; flex-wrap: wrap; }
     .pagination button, .pagination .pg-num { padding: .35rem .65rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; cursor: pointer; background: #fff; color: #333; min-width: 2rem; text-align: center; }
@@ -119,9 +130,11 @@ export function renderNovel(name: string, meta: NovelMeta): string {
 </head>
 <body>
   <a href="/" class="back">← Thư viện</a>
+  <button id="auth-btn" class="btn btn-outline" style="float:right;margin-top:-.3rem">🔑 Đăng nhập</button>
   <h1>${escapeHtml(displayName)}</h1>
   ${meta.author ? `<p style="color:#888;font-size:.85rem;margin-bottom:.3rem">${escapeHtml(meta.author)}</p>` : ""}
   <p class="subtitle">${subtitle}</p>
+  ${lastRead > 0 ? `<div class="continue-banner"><a href="/read/${encodeURIComponent(name)}/${lastRead}" class="btn btn-primary">→ Tiếp tục đọc chương ${lastRead}</a></div>` : ""}
   ${meta.translating ? '<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.85rem;color:#4338ca">⚠ Truyện đang được dịch, một số chương có thể chưa được dịch xong.</div>' : ""}
   ${introHtml}
 
@@ -189,6 +202,26 @@ export function renderNovel(name: string, meta: NovelMeta): string {
     }
 
     changePageSize(20);
+
+    // ── Scroll to last read ──
+    ${
+      lastRead > 0
+        ? `(function() {
+      var lastReadIdx = -1;
+      document.querySelectorAll('#chapter-list > *[data-idx]').forEach(function(el) {
+        var idx = parseInt(el.getAttribute('data-idx'));
+        if (idx >= 0) {
+          var chNum = parseInt(el.querySelector('.ch-num') ? el.querySelector('.ch-num').textContent.replace('#','').replace('✓','') : '0');
+          if (chNum === ${lastRead}) lastReadIdx = idx;
+        }
+      });
+      if (lastReadIdx >= 0) {
+        var targetPage = Math.floor(lastReadIdx / pageSize) + 1;
+        showPage(targetPage);
+      }
+    })();`
+        : ""
+    }
 
     // ── Retranslate buttons ──
     (function() {

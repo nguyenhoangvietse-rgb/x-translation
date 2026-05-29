@@ -1,6 +1,37 @@
 import type { Env, Book, Novel, NovelMeta } from "./types";
 import { formatDate } from "./utils";
 
+export async function getProgress(
+  env: Env,
+  readerId: string,
+): Promise<Record<string, { chapter: number; updatedAt: string }>> {
+  if (!readerId) return {};
+  try {
+    const obj = await env.LIBRARY.get(`readers/${readerId}/progress.json`);
+    if (!obj) return {};
+    return JSON.parse(await obj.text());
+  } catch {
+    return {};
+  }
+}
+
+export async function saveProgress(
+  env: Env,
+  readerId: string,
+  novel: string,
+  chapter: number,
+): Promise<void> {
+  if (!readerId) return;
+  try {
+    const progress = await getProgress(env, readerId);
+    progress[novel] = { chapter, updatedAt: new Date().toISOString() };
+    await env.LIBRARY.put(
+      `readers/${readerId}/progress.json`,
+      JSON.stringify(progress),
+    );
+  } catch {}
+}
+
 export async function getNovels(env: Env): Promise<Novel[]> {
   const seen = new Set<string>();
   const novels: Novel[] = [];
@@ -16,7 +47,9 @@ export async function getNovels(env: Env): Promise<Novel[]> {
       seen.add(name);
 
       try {
-        const metaObj = await env.LIBRARY.get(`translated/${name}/metadata.json`);
+        const metaObj = await env.LIBRARY.get(
+          `translated/${name}/metadata.json`,
+        );
         if (!metaObj) continue;
         const meta: NovelMeta = JSON.parse(await metaObj.text());
 
@@ -29,7 +62,7 @@ export async function getNovels(env: Env): Promise<Novel[]> {
 
         novels.push({
           name,
-          chapterCount: meta.chapters.filter(c => c.id > 0).length,
+          chapterCount: meta.chapters.filter((c) => c.id > 0).length,
           displayName,
           hasCover,
           translating: meta.translating,
@@ -43,7 +76,10 @@ export async function getNovels(env: Env): Promise<Novel[]> {
   return novels;
 }
 
-export async function getMeta(env: Env, name: string): Promise<NovelMeta | null> {
+export async function getMeta(
+  env: Env,
+  name: string,
+): Promise<NovelMeta | null> {
   try {
     const obj = await env.LIBRARY.get(`translated/${name}/metadata.json`);
     if (!obj) return null;
@@ -53,7 +89,12 @@ export async function getMeta(env: Env, name: string): Promise<NovelMeta | null>
   }
 }
 
-export async function getChapterText(env: Env, name: string, id: number, chPath?: string): Promise<string | null> {
+export async function getChapterText(
+  env: Env,
+  name: string,
+  id: number,
+  chPath?: string,
+): Promise<string | null> {
   try {
     const key = chPath || `translated/${name}/chapter_${id}.txt`;
     const obj = await env.LIBRARY.get(key);
@@ -93,17 +134,23 @@ export async function getAdminBooks(env: Env): Promise<Book[]> {
       let translatedChapters = 0;
       if (metaObj) {
         try {
-          const metaContent = await env.LIBRARY.get(`translated/${name}/metadata.json`);
+          const metaContent = await env.LIBRARY.get(
+            `translated/${name}/metadata.json`,
+          );
           if (metaContent) {
             const parsed = JSON.parse(await metaContent.text());
             translating = !!parsed.translating;
-            translatedChapters = (parsed.chapters || []).filter((c: any) => c.id > 0).length;
+            translatedChapters = (parsed.chapters || []).filter(
+              (c: any) => c.id > 0,
+            ).length;
           }
         } catch {}
       }
       if (!translating) {
         try {
-          translating = !!(await env.LIBRARY.head(`translated/${name}/_translate_pending`));
+          translating = !!(await env.LIBRARY.head(
+            `translated/${name}/_translate_pending`,
+          ));
         } catch {}
       }
 

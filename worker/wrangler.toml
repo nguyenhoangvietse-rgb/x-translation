@@ -9,6 +9,9 @@ bucket_name = "n-storage"
 [vars]
 OWNER = "nguyenhoangvietse-rgb"
 REPO = "x-translation"
+FIREBASE_API_KEY = "AIzaSyBvcnM9Nz1umt0aa7A2DQ9OQrQrEQ2jijU"
+FIREBASE_AUTH_DOMAIN = "x-translate-5e6ee.firebaseapp.com"
+FIREBASE_PROJECT_ID = "x-translate-5e6ee"
 
 [observability]
 enabled = true

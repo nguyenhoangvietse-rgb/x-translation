@@ -1,6 +1,13 @@
 import type { Env } from "./types";
-import { escapeHtml, sanitizeName, statusBadge } from "./utils";
-import { getNovels, getMeta, getChapterText, getAdminBooks } from "./data";
+import { escapeHtml, sanitizeName, statusBadge, getUid } from "./utils";
+import {
+  getNovels,
+  getMeta,
+  getChapterText,
+  getAdminBooks,
+  getProgress,
+  saveProgress,
+} from "./data";
 import { triggerWorkflow, triggerSplit, triggerRetranslate } from "./github";
 import {
   renderLibrary,
@@ -16,11 +23,15 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // ── Reader identity ──────────────────────────
+    const uid = getUid(request);
+
     // ── Reader routes ────────────────────────────
 
     if (request.method === "GET" && path === "/") {
       const novels = await getNovels(env);
-      return new Response(renderLibrary(novels), {
+      const progress = uid ? await getProgress(env, uid) : {};
+      return new Response(renderLibrary(novels, progress), {
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
@@ -30,6 +41,7 @@ export default {
     if (request.method === "GET" && novelMatch) {
       const name = decodeURIComponent(novelMatch[1]);
       const meta = await getMeta(env, name);
+      const progress = uid ? await getProgress(env, uid) : {};
       if (!meta) {
         return new Response(
           `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:2rem"><div class="empty">Không tìm thấy truyện "${escapeHtml(name)}".</div><p><a href="/">← Thư viện</a></p></body></html>`,
@@ -39,9 +51,12 @@ export default {
         );
       }
 
-      return new Response(renderNovel(name, meta), {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+      return new Response(
+        renderNovel(name, meta, progress[name]?.chapter ?? 0),
+        {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        },
+      );
     }
 
     // Chapter reader
@@ -347,6 +362,26 @@ export default {
 
       return new Response(coverCell(name, true, "Cover uploaded", "success"), {
         headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
+    // ── Progress API routes ──────────────────────
+
+    if (request.method === "POST" && path.startsWith("/api/progress/")) {
+      const novelName = decodeURIComponent(path.replace("/api/progress/", ""));
+      if (!novelName || !uid) {
+        return new Response("{}", { status: 200 });
+      }
+      try {
+        const body: any = await request.json();
+        const chapter = parseInt(String(body?.chapter || "0"), 10);
+        if (chapter > 0) {
+          await saveProgress(env, uid, novelName, chapter);
+        }
+      } catch {}
+      return new Response("{}", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
