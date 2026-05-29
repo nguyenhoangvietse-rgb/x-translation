@@ -2,7 +2,7 @@ import type { NovelMeta } from "../types";
 import { escapeHtml, stripMarkdown, SHARED_CSS } from "../utils";
 
 export function renderNovel(name: string, meta: NovelMeta): string {
-  const reading = meta.chapters.filter(c => c.id > 0);
+  const reading = meta.chapters.filter((c) => c.id > 0);
 
   const displayName = meta.story_name || name;
 
@@ -22,7 +22,7 @@ export function renderNovel(name: string, meta: NovelMeta): string {
   const groups: { volLabel?: string; chapters: typeof reading }[] = [];
 
   for (const v of volOrder) {
-    const chs = reading.filter(c => c.volume === v.title_cn);
+    const chs = reading.filter((c) => c.volume === v.title_cn);
     if (chs.length > 0) {
       for (const c of chs) assigned.add(c.id);
       groups.push({
@@ -31,13 +31,15 @@ export function renderNovel(name: string, meta: NovelMeta): string {
       });
     }
   }
-  const rest = reading.filter(c => !assigned.has(c.id));
+  const rest = reading.filter((c) => !assigned.has(c.id));
   if (rest.length > 0) {
     groups.push({ chapters: rest });
   }
 
   // ── Build flat list with volume headers ──
-  type FlatItem = { type: "vol"; label: string; idx: number } | { type: "ch"; id: number; idx: number };
+  type FlatItem =
+    | { type: "vol"; label: string; idx: number }
+    | { type: "ch"; id: number; idx: number };
   const flat: FlatItem[] = [];
   let idx = 0;
 
@@ -56,17 +58,19 @@ export function renderNovel(name: string, meta: NovelMeta): string {
   const itemsHtml = flat
     .map((item) => {
       if (item.type === "ch") {
-        const c = reading.find(x => x.id === item.id)!;
+        const c = reading.find((x) => x.id === item.id)!;
+        const hasError = !c.path || c.hash?.startsWith("PENDING");
         return `<div class="ch-row" data-idx="${item.idx}" style="display:none">
           <a href="/read/${encodeURIComponent(name)}/${c.id}" style="flex:1;display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;text-decoration:none;color:#333">
             <span class="ch-num">#${c.id}</span>
             <span class="ch-title">${escapeHtml(stripMarkdown(c.translated_title || c.title))}</span>
-            ${(!c.path || c.hash?.startsWith('PENDING')) ? '<span style="color:#f59e0b;font-size:.65rem;margin-left:.4rem">(lỗi)</span>' : ''}
+            ${hasError ? '<span class="ch-err" title="Chương này chưa được dịch hoặc gặp lỗi">⚠ lỗi</span>' : ""}
           </a>
-          ${!meta.translating
-            ? `<button onclick="fetch('/api/retranslate/${encodeURIComponent(name)}/${c.id}',{method:'POST'}).then(r=>r.ok&&(this.textContent='Đã gửi'))"
-              style="border:none;background:none;color:#6366f1;font-size:.65rem;cursor:pointer;padding:.2rem .5rem;white-space:nowrap">Dịch lại</button>`
-            : ''}
+          <button class="btn-retranslate"
+            data-name="${escapeHtml(name)}"
+            data-chapter="${c.id}"
+            ${hasError ? 'data-error="1"' : ""}
+            title="Gửi yêu cầu dịch lại chương này">${hasError ? "Dịch lại" : "↻"}</button>
         </div>`;
       } else {
         return `<div class="vol-header" data-idx="${item.idx}" style="display:none">${escapeHtml(stripMarkdown(item.label))}</div>`;
@@ -94,6 +98,16 @@ export function renderNovel(name: string, meta: NovelMeta): string {
     .ch-row:hover { background: #fafaff; }
     .ch-num { font-size: .75rem; color: #888; min-width: 2.5rem; }
     .ch-title { font-size: .9rem; }
+    .ch-err { color: #d97706; font-size: .7rem; margin-left: .4rem; cursor: help; }
+    .btn-retranslate { flex-shrink: 0; font-size: .7rem; padding: .25rem .55rem; border: 1px solid #d1d5db; border-radius: 5px; background: #fff; color: #6366f1; cursor: pointer; transition: all .15s; white-space: nowrap; margin-right: .5rem; }
+    .btn-retranslate:hover { background: #eef2ff; border-color: #6366f1; }
+    .btn-retranslate[data-error="1"] { color: #d97706; border-color: #fcd34d; background: #fffbeb; font-size: .72rem; padding: .3rem .6rem; }
+    .btn-retranslate[data-error="1"]:hover { background: #fef3c7; border-color: #f59e0b; }
+    .btn-retranslate:disabled { opacity: .4; cursor: not-allowed; }
+    .toast-novel { position: fixed; top: 1rem; right: 1rem; padding: .7rem 1rem; border-radius: 6px; font-size: .85rem; color: #fff; z-index: 1000; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    .toast-novel.show { opacity: 1; }
+    .toast-novel.ok { background: #059669; }
+    .toast-novel.err { background: #dc2626; }
     .pagination-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
     .pagination { display: flex; gap: .35rem; flex-wrap: wrap; }
     .pagination button, .pagination .pg-num { padding: .35rem .65rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; cursor: pointer; background: #fff; color: #333; min-width: 2rem; text-align: center; }
@@ -106,12 +120,14 @@ export function renderNovel(name: string, meta: NovelMeta): string {
 <body>
   <a href="/" class="back">← Thư viện</a>
   <h1>${escapeHtml(displayName)}</h1>
-  ${meta.author ? `<p style="color:#888;font-size:.85rem;margin-bottom:.3rem">${escapeHtml(meta.author)}</p>` : ''}
+  ${meta.author ? `<p style="color:#888;font-size:.85rem;margin-bottom:.3rem">${escapeHtml(meta.author)}</p>` : ""}
   <p class="subtitle">${subtitle}</p>
-  ${meta.translating ? '<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.85rem;color:#4338ca">⚠ Truyện đang được dịch, một số chương có thể chưa được dịch xong.</div>' : ''}
+  ${meta.translating ? '<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.85rem;color:#4338ca">⚠ Truyện đang được dịch, một số chương có thể chưa được dịch xong.</div>' : ""}
   ${introHtml}
 
   <div id="chapter-list">${itemsHtml}</div>
+
+  <div id="toast-novel" class="toast-novel"></div>
 
   <div class="pagination-toolbar">
     <div class="pagination" id="pagination"></div>
@@ -173,6 +189,47 @@ export function renderNovel(name: string, meta: NovelMeta): string {
     }
 
     changePageSize(20);
+
+    // ── Retranslate buttons ──
+    (function() {
+      var toastNv = document.getElementById('toast-novel');
+      var timerNv;
+
+      function showToast(msg, type) {
+        toastNv.textContent = msg;
+        toastNv.className = 'toast-novel ' + (type === 'err' ? 'err' : 'ok') + ' show';
+        clearTimeout(timerNv);
+        timerNv = setTimeout(function() { toastNv.classList.remove('show'); }, 3000);
+      }
+
+      document.querySelectorAll('.btn-retranslate').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var btnName = btn.getAttribute('data-name');
+          var btnChapter = btn.getAttribute('data-chapter');
+          btn.disabled = true;
+          btn.textContent = '...';
+
+          fetch('/api/retranslate/' + encodeURIComponent(btnName) + '/' + encodeURIComponent(btnChapter), { method: 'POST' })
+            .then(function(r) {
+              if (r.ok) {
+                btn.textContent = '\u2713';
+                btn.style.color = '#059669';
+                btn.style.borderColor = '#6ee7b7';
+                showToast('Đã gửi yêu cầu dịch lại chương ' + btnChapter, 'ok');
+              } else {
+                btn.disabled = false;
+                btn.textContent = btn.hasAttribute('data-error') ? 'Dịch lại' : '↻';
+                showToast('Không thể gửi yêu cầu dịch lại chương ' + btnChapter, 'err');
+              }
+            })
+            .catch(function() {
+              btn.disabled = false;
+              btn.textContent = btn.hasAttribute('data-error') ? 'Dịch lại' : '↻';
+              showToast('Lỗi kết nối', 'err');
+            });
+        });
+      });
+    })();
   </script>
 </body>
 </html>`;

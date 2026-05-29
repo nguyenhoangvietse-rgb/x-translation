@@ -1,0 +1,37 @@
+name: Retranslate Single Chapter
+on:
+  repository_dispatch:
+    types: [retranslate_chapter]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  retranslate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Retranslate Chapter
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: >
+          python scripts/translate.py
+          --book "${{ github.event.client_payload.book_name }}"
+          --chapter ${{ github.event.client_payload.chapter_id }}
+          --batch-size 0
